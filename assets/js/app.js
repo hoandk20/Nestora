@@ -3,7 +3,7 @@
   "use strict";
 
   // Đổi số này mỗi khi cập nhật mô hình 3D để trình duyệt tải lại bản mới (tránh cache)
-  const ASSET_VERSION = "202611230919";
+  const ASSET_VERSION = "202611230937";
 
   /* ---------- Utils ---------- */
   const $ = (s, el = document) => el.querySelector(s);

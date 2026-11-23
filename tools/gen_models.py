@@ -60,6 +60,13 @@ def fabric_texture(kind, size=256):
         h = np.clip(line * 6, 0, 1) ** 0.5 * 1.6
         h += 0.08 * np.sin(np.pi * x * 64) ** 2
         s = 6.0
+    elif kind == "diamond":  # dệt kim hoa văn thoi nhỏ (vỏ gối Low Profile)
+        X, Y = x * 8, y * 8
+        u, v = (X + Y) % 1, (X - Y) % 1
+        line = np.minimum(np.minimum(u, 1 - u), np.minimum(v, 1 - v))
+        h = np.clip(line * 5, 0, 1) ** 0.7
+        h += 0.25 * np.sin(np.pi * x * 96) ** 2
+        s = 5.5
     else:  # velvet: nhung mịn
         h = np.zeros_like(x)
         s = 1.2
@@ -67,7 +74,7 @@ def fabric_texture(kind, size=256):
     return normal_from_height(h, s)
 
 
-TEX = {k: fabric_texture(k) for k in ("weave", "knit", "mesh", "quilt", "velvet")}
+TEX = {k: fabric_texture(k) for k in ("weave", "knit", "mesh", "quilt", "diamond", "velvet")}
 
 
 def srgb_lin(hexstr, mul=1.0):
@@ -84,7 +91,7 @@ def material(hexstr, tex="weave", rough=0.95, metal=0.0, mul=1.0):
 
 ZIP = dict(tex=None, rough=0.45, metal=0.6)
 # tỷ lệ lặp vân theo từng loại vải (lần lặp / mét)
-UV = {"weave": 28.0, "knit": 14.0, "mesh": 22.0, "quilt": 7.0, "velvet": 10.0}
+UV = {"weave": 28.0, "knit": 14.0, "mesh": 22.0, "quilt": 7.0, "diamond": 13.0, "velvet": 10.0}
 
 
 # ================================================================ geometry helpers
@@ -356,9 +363,10 @@ body, rims, mid = gusset(0.70, 0.50, 0.08, e_vert=0.32, e_horiz=0.2, puff=1.9, p
                          rim_at=0.85, wrinkles=1.0)
 build("n03", [part(body, "#EDEBEE")] + [part(tube(r * [1.002, 1.002, 1], 0.0042), "#EDEBEE", mul=0.92, rough=0.85) for r in rims])
 
-# N04 Low Profile – gối thấp, mặt trần bông hình thoi, viền mảnh
-body, rims, mid = gusset(0.70, 0.50, 0.075, e_vert=0.55, e_horiz=0.2, puff=0.12, rim_at=0.75)
-build("n04", [part(body, "#F0EEEC", tex="quilt")] + [part(tube(r * [1.002, 1.002, 1], 0.003), "#F0EEEC", mul=0.93) for r in rims])
+# N04 Low Profile – gối thấp, mặt trên cong tròn mềm, cạnh bo, vỏ dệt kim hoa văn thoi nhỏ, 1 đường may mảnh
+body, rims, mid = gusset(0.70, 0.50, 0.07, e_vert=0.5, e_horiz=0.22, puff=1.0, puff_bottom=0.08, a=0.6,
+                         rim_at=0.45, wrinkles=0.5)
+build("n04", [part(body, "#F1F0EE", tex="diamond"), part(tube(rims[0] * [1.002, 1.002, 1], 0.0022), "#F1F0EE", mul=0.92)])
 
 # N05 Flex Adjustable – trắng, viền ống XÁM, khóa kéo dọc cạnh dài phía trước
 body, rim = stuffed(0.70, 0.50, 0.21, pw=2.4, a=0.4, edge=0.28)
