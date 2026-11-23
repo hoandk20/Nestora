@@ -260,10 +260,44 @@ def u_pillow(R, a, b, theta, taper=0.25, arm=0.0, nu=64, nt=260):
     z = b * s * thick * ripple * np.sin(phi) * np.ones_like(ang) + 0.005 * t ** 2
     P = np.stack([x, y, z], -1)
 
-    def seam(ph):
-        j = int(np.argmin(np.abs(((phi[0] - ph + np.pi) % (2 * np.pi)) - np.pi)))
-        return P[(s[:, 0] > 0.4), j]
-    return grid_mesh(P), seam, P
+    def col(ph):  # chỉ số cột lưới gần góc phi nhất
+        return int(np.argmin(np.abs(((phi[0] - ph + np.pi) % (2 * np.pi)) - np.pi)))
+
+    def seam(j):  # đường may chạy đúng theo cột lưới j (trùng mép hai mảng vải)
+        return P[(s[:, 0] > 0.3), j]
+    return P, col, seam
+
+
+def u_panels(P, j0, j1):
+    """Tách thân gối chữ U thành 2 mảng vải theo cột lưới: [j0..j1] và phần còn lại.
+    Hai mảng dùng chung cột ranh giới nên mép khít, thẳng hàng với đường may."""
+    nt, nu, _ = P.shape
+    # xác định chiều tam giác giống mesh kín (pháp tuyến hướng ra ngoài)
+    i = nt // 2  # lấy mẫu ở giữa thân (hai đầu ống các điểm dồn về một chỗ)
+    q = i * nu
+    probe = trimesh.Trimesh(P.reshape(-1, 3), np.array([[q, q + nu, q + 1]]), process=False)
+    ring_center = P[i].mean(0)  # tâm mặt cắt ống tại hàng i (tâm cả khối chữ U nằm ngoài thân)
+    flip = np.dot(probe.face_normals[0], probe.triangles_center[0] - ring_center) < 0
+
+    def panel(cols):
+        Q = P[:, cols, :]
+        m = len(cols)
+        faces = []
+        for i in range(nt - 1):
+            for k in range(m - 1):
+                a, b = i * m + k, i * m + k + 1
+                c, d = (i + 1) * m + k, (i + 1) * m + k + 1
+                faces += [[a, c, b], [b, c, d]]
+        f = np.array(faces)
+        if flip:
+            f = f[:, ::-1]
+        mesh = trimesh.Trimesh(Q.reshape(-1, 3), f, process=True)
+        mesh.merge_vertices()
+        mesh.update_faces(mesh.nondegenerate_faces())
+        return mesh
+    a_cols = [j % nu for j in range(j0, j1 + 1)] if j1 >= j0 else [j % nu for j in range(j0, j1 + nu + 1)]
+    b_cols = [j % nu for j in range(j1, j0 + nu + 1)] if j1 >= j0 else [j % nu for j in range(j1, j0 + 1)]
+    return panel(a_cols), panel(b_cols)
 
 
 # ================================================================ assembly & export
@@ -347,35 +381,28 @@ build("n09", [part(body, "#E2D3BF"), part(tube(seam, 0.0025, closed=False, n=8),
 
 # N10 Rest – chữ U dáng lưỡi liềm: mặt trên trần bông trắng, đáy xám đậm
 R, a, b = 0.092, 0.06, 0.055
-body, seam, _ = u_pillow(R, a, b, theta=np.radians(150), taper=0.5)
-k = np.arcsin(0.05)
-top, bot = split_by(body, lambda c: c[:, 2] > b * 0.05)
+P, col, seam = u_pillow(R, a, b, theta=np.radians(150), taper=0.5)
+j0, j1 = col(np.radians(4)), col(np.radians(176))  # mặt trên: phi từ ~0° đến ~180°
+top, bot = u_panels(P, j0, j1)
 build("n10", [part(top, "#F2F1EF", tex="quilt"), part(bot, "#5C5A5E", tex="knit"),
-              part(tube(seam(k), 0.004, closed=False, n=10), "#5C5A5E", mul=0.9),
-              part(tube(seam(np.pi - k), 0.004, closed=False, n=10), "#5C5A5E", mul=0.9)])
+              part(tube(seam(j0), 0.004, closed=False, n=10), "#5C5A5E", mul=0.9),
+              part(tube(seam(j1), 0.004, closed=False, n=10), "#5C5A5E", mul=0.9)])
 
-# N11 Move Travel – chữ U dẹt, tay dài: ngoài lưới xám đậm, trong nhung nâu nhạt, quai ở hai đầu
+# N11 Move Travel – chữ U dẹt, tay dài: ngoài lưới xám đậm, mặt trên phía trong là dải nhung nâu nhạt
 R, a, b = 0.078, 0.07, 0.046
-body, seam, P = u_pillow(R, a, b, theta=np.radians(105), taper=0.15, arm=0.13)
-cy = R * 0.35
-inner_r = R + a * 0.25
-
-
-def is_inner(c):
-    return np.hypot(c[:, 0], c[:, 1] - cy) < inner_r + 0.0 * c[:, 2]
-
-
-inn, out = split_by(body, is_inner)
-k = np.arccos(0.25)
+P, col, seam = u_pillow(R, a, b, theta=np.radians(105), taper=0.15, arm=0.13)
+# dải nhung: từ đỉnh mặt trên (phi ≈ 70°) vòng vào mặt trong (phi ≈ 200°)
+j0, j1 = col(np.radians(70)), col(np.radians(-160))
+velvet, shell = u_panels(P, j0, j1)
 tabs = []
-for end in (P[0].mean(0), P[-1].mean(0)):
+for end in (P[0].mean(0), P[-1].mean(0)):  # quai nhỏ ở hai đầu tay
     loop = trimesh.creation.torus(major_radius=0.012, minor_radius=0.003)
     loop.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [0, 1, 0]))
-    loop.apply_translation(end + [0, -0.012, 0])
+    loop.apply_translation(end + [0, 0.01, 0])
     tabs.append(part(loop, "#3A3739", tex=None, rough=0.7))
-build("n11", [part(inn, "#BDB2A4", tex="velvet", rough=1.0), part(out, "#6F6A67", tex="mesh"),
-              part(tube(seam(k), 0.0038, closed=False, n=10), "#5E5956"),
-              part(tube(seam(-k), 0.0038, closed=False, n=10), "#5E5956")] + tabs)
+build("n11", [part(velvet, "#BDB2A4", tex="velvet", rough=1.0), part(shell, "#6F6A67", tex="mesh"),
+              part(tube(seam(j0), 0.0038, closed=False, n=10), "#55504D"),
+              part(tube(seam(j1), 0.0038, closed=False, n=10), "#55504D")] + tabs)
 
 # N12 Mini – khối chữ nhật: mặt trên/dưới nâu nhạt, thành xám đậm, 2 viền
 body, rims, mid = gusset(0.30, 0.20, 0.075, e_vert=0.35, e_horiz=0.22, puff=0.08, rim_at=0.7)
