@@ -544,6 +544,13 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .footer-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 40px; }
 .footer-brand p { font-size: .88rem; max-width: 36ch; margin-top: 18px; opacity: .8; }
 .brand-light { color: #fff; }
+.socials { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.site-footer .footer-grid .socials a.social { display: grid; padding: 0; opacity: 1; }
+.social { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.1); color: #fff; transition: .2s; }
+.social svg { width: 19px; height: 19px; }
+.social:hover { background: var(--clay); color: #fff; transform: translateY(-2px); }
+.socials-dark .social { background: var(--plum); }
+.socials-dark .social:hover { background: var(--clay); }
 .brand-light .brand-tag { color: #bfb3c4; }
 .brand-light .logo-mark svg path:first-child { fill: #fff; }
 .site-footer h4 { color: #fff; font-family: var(--sans); font-size: .76rem; letter-spacing: .2em; text-transform: uppercase; font-weight: 500; margin-bottom: 16px; }

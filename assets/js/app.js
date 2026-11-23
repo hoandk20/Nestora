@@ -87,6 +87,9 @@
   }
 
   /* ---------- Shared components ---------- */
+  const socialLinks = (cls = "") => SOCIALS.map((s) =>
+    `<a class="social ${cls}" href="${s.url}" target="_blank" rel="noopener" aria-label="NESTORA trên ${s.name}" title="${s.name}"><svg viewBox="0 0 24 24" aria-hidden="true">${s.svg}</svg></a>`).join("");
+  $$("[data-socials]").forEach((el) => (el.innerHTML = socialLinks()));
   const FEEL_TEXT = (p) => p.feel.map((f) => FILTER_LABELS.feel[f])[0];
   function productCard(p) {
     return `
@@ -1032,6 +1035,8 @@
         <div class="info-box"><div class="k">Zalo</div><div class="v"><a href="https://zalo.me/" target="_blank" rel="noopener">Chat với tư vấn viên</a></div></div>
         <div class="info-box"><div class="k">Giờ làm việc</div><div class="v">8:00 – 21:00 hằng ngày</div></div>
       </div>
+      <h3>Theo dõi NESTORA</h3>
+      <div class="socials socials-dark">${socialLinks()}</div>
       <p class="muted" style="font-size:.8rem">* Thông tin liên hệ trong bản demo là thông tin minh họa.</p>
       <div class="panel" style="margin-top:24px"><h3>Gửi lời nhắn cho NESTORA</h3>
         <form class="form-grid" id="contactForm">

@@ -396,6 +396,20 @@ const ARTICLES = [
   },
 ];
 
+/* Mạng xã hội – thay đường dẫn bằng trang chính thức của NESTORA */
+const SOCIALS = [
+  { name: "TikTok", url: "https://www.tiktok.com/",
+    svg: '<path fill="currentColor" stroke="none" d="M16.6 3c.4 2.3 1.9 3.8 4.2 4v3.2c-1.5 0-2.9-.4-4.2-1.2v6.3c0 3.6-2.7 5.9-5.8 5.9-3.2 0-5.6-2.5-5.6-5.6 0-3.5 3.2-6.1 6.7-5.5v3.3c-1.6-.4-3.3.6-3.3 2.3 0 1.3 1 2.4 2.3 2.4 1.5 0 2.4-1 2.4-2.7V3z"/>' },
+  { name: "Facebook", url: "https://www.facebook.com/",
+    svg: '<path fill="currentColor" stroke="none" d="M14 8.5V6.8c0-.8.5-1 .9-1H17V2.2h-2.9c-3.2 0-3.9 2.4-3.9 4v2.3H8v3.7h2.2V22h3.8v-9.8h3l.4-3.7z"/>' },
+  { name: "Instagram", url: "https://www.instagram.com/",
+    svg: '<rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5"/><circle cx="12" cy="12" r="4.1"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/>' },
+  { name: "X", url: "https://x.com/",
+    svg: '<path fill="currentColor" stroke="none" d="M17.8 3h3.1l-6.8 7.8L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.3-8.3L1.9 3h6.4l4.4 5.8zm-1.1 16.2h1.7L7.4 4.7H5.6z"/>' },
+  { name: "Pinterest", url: "https://www.pinterest.com/",
+    svg: '<path fill="currentColor" stroke="none" d="M12 2a10 10 0 0 0-3.6 19.3c-.1-.8-.2-2 0-2.9l1.2-5s-.3-.6-.3-1.5c0-1.4.8-2.5 1.8-2.5.9 0 1.3.7 1.3 1.5 0 .9-.6 2.2-.9 3.4-.2 1 .5 1.9 1.6 1.9 1.9 0 3.3-2 3.3-4.9 0-2.6-1.8-4.3-4.5-4.3-3 0-4.8 2.3-4.8 4.6 0 .9.4 1.9.8 2.4l.1.4-.3 1.2c0 .2-.2.3-.4.2-1.4-.6-2.2-2.6-2.2-4.2 0-3.4 2.5-6.6 7.2-6.6 3.8 0 6.7 2.7 6.7 6.3 0 3.7-2.4 6.8-5.7 6.8-1.1 0-2.2-.6-2.5-1.3l-.7 2.6c-.3 1-.9 2.2-1.4 2.9A10 10 0 1 0 12 2z"/>' },
+];
+
 /* Chatbox FAQ */
 const FAQ = [
   { q: "Phí giao hàng bao nhiêu?", k: ["phí", "ship", "giao", "vận chuyển"],
