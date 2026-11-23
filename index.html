@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NESTORA – Gối ngủ</title>
+  <meta name="description" content="NESTORA – Comfort is Personal. Thoải mái theo cách riêng của bạn." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="icon" type="image/png" href="assets/img/favicon.png" />
+</head>
+<body>
+  <button class="skip" type="button" onclick="document.getElementById('app').focus()">Bỏ qua điều hướng</button>
+
+  <div class="announce">Miễn phí giao hàng cho đơn từ 500.000₫ · Đổi trả trong 7 ngày</div>
+
+  <header class="site-header" id="header">
+    <div class="container header-inner">
+      <button class="icon-btn menu-toggle" id="menuToggle" aria-label="Mở menu" aria-expanded="false">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+
+      <a href="#home" class="brand" aria-label="NESTORA – Trang chủ">
+        <img class="logo-img" src="assets/img/logo.png" alt="NESTORA – Your comfort, your way." width="928" height="599" />
+      </a>
+
+      <nav class="main-nav" id="mainNav" aria-label="Điều hướng chính">
+        <a href="#shop" data-nav="shop">Shop</a>
+        <a href="#story" data-nav="story">Our Story</a>
+        <a href="#quiz" data-nav="quiz">Pillow Quiz</a>
+        <a href="#journal" data-nav="journal">Journal</a>
+        <a href="#support" data-nav="support">Hỗ trợ</a>
+      </nav>
+
+      <div class="header-actions">
+        <button class="icon-btn" id="searchBtn" aria-label="Tìm kiếm">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+        </button>
+        <a class="icon-btn hide-sm" href="#track" aria-label="Theo dõi đơn hàng">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-3.8 4-5.5 7.5-5.5s6.3 1.7 7.5 5.5"/></svg>
+        </a>
+        <a class="icon-btn" href="#wishlist" aria-label="Yêu thích">
+          <svg viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.3a4.3 4.3 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z"/></svg>
+          <span class="badge" id="wishCount" hidden>0</span>
+        </a>
+        <button class="icon-btn" id="cartBtn" aria-label="Giỏ hàng">
+          <svg viewBox="0 0 24 24"><path d="M3 4h2.2l2.2 11h10.4L20 7.5H6.3"/><circle cx="9" cy="19" r="1.3"/><circle cx="17" cy="19" r="1.3"/></svg>
+          <span class="badge" id="cartCount" hidden>0</span>
+        </button>
+      </div>
+    </div>
+    <div class="search-bar" id="searchBar" hidden>
+      <div class="container">
+        <form id="searchForm" role="search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+          <input type="search" id="searchInput" placeholder="Tìm gối theo tên, chất liệu…" aria-label="Tìm kiếm sản phẩm" />
+          <button type="button" class="link-btn" id="searchClose">Đóng</button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <main id="app" tabindex="-1"></main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a href="#home" class="brand brand-light">
+          <img class="logo-img logo-footer" src="assets/img/logo-light.png" alt="NESTORA – Your comfort, your way." width="928" height="599" />
+        </a>
+        <p>Thoải mái theo cách riêng của bạn. Bộ sưu tập gối được phát triển với sự chú trọng vào chất liệu, cấu trúc và đặc tính sử dụng.</p>
+      </div>
+      <div>
+        <h4>Sản phẩm</h4>
+        <a href="#shop-sleep">Sleep Collection</a>
+        <a href="#shop-move">Move Collection</a>
+        <a href="#quiz">Pillow Quiz</a>
+      </div>
+      <div>
+        <h4>Về NESTORA</h4>
+        <a href="#story">Our Story</a>
+        <a href="#journal">Góc kiến thức</a>
+        <a href="#track">Theo dõi đơn hàng</a>
+      </div>
+      <div>
+        <h4>Hỗ trợ khách hàng</h4>
+        <a href="#support-guide">Hướng dẫn mua hàng</a>
+        <a href="#support-shipping">Chính sách giao hàng</a>
+        <a href="#support-returns">Đổi trả &amp; bảo hành</a>
+        <a href="#support-contact">Liên hệ</a>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <span>© 2026 NESTORA.</span>
+      <span>Thanh toán: COD · Chuyển khoản · Trực tuyến</span>
+    </div>
+  </footer>
+
+  <!-- Cart drawer -->
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+  <aside class="drawer" id="cartDrawer" aria-label="Giỏ hàng" aria-hidden="true">
+    <div class="drawer-head">
+      <h3>Giỏ hàng</h3>
+      <button class="icon-btn" id="drawerClose" aria-label="Đóng giỏ hàng">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+    <div class="drawer-foot" id="drawerFoot"></div>
+  </aside>
+
+  <!-- Chat & Zalo -->
+  <div class="float-stack">
+    <a class="float-btn zalo" href="https://zalo.me/" target="_blank" rel="noopener" aria-label="Chat với tư vấn viên qua Zalo">Zalo</a>
+    <button class="float-btn chat" id="chatToggle" aria-label="Mở hộp chat hỗ trợ">
+      <svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>
+    </button>
+  </div>
+  <section class="chatbox" id="chatbox" aria-label="Hỗ trợ trực tuyến" hidden>
+    <div class="chat-head">
+      <img class="chat-avatar" src="assets/img/favicon.png" alt="" />
+      <div><strong>NESTORA hỗ trợ</strong><small>Thường trả lời ngay</small></div>
+      <button class="icon-btn" id="chatClose" aria-label="Đóng chat"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="chat-body" id="chatBody"></div>
+    <div class="chat-quick" id="chatQuick"></div>
+    <form class="chat-input" id="chatForm">
+      <input id="chatInput" placeholder="Nhập câu hỏi của bạn…" aria-label="Nhập câu hỏi" autocomplete="off" />
+      <button class="btn btn-primary btn-sm" type="submit">Gửi</button>
+    </form>
+  </section>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
