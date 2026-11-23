@@ -204,12 +204,18 @@ def stuffed(w, d, h, pw=2.0, a=0.6, edge=0.1, waist=0.035, e_horiz=0.24, wrinkle
     return grid_mesh(P), P[P.shape[0] // 2].copy()
 
 
-def gusset(w, d, h, e_vert=0.4, e_horiz=0.2, puff=0.06, rim_at=0.82):
+def gusset(w, d, h, e_vert=0.4, e_horiz=0.2, puff=0.06, rim_at=0.82, a=1.0, puff_bottom=None, wrinkles=0.0):
     """Gối có thành đứng: viền trên & dưới, đường giữa thành dùng cho khóa kéo."""
     P = superquadric(w, d, h, e_vert, e_horiz)
     U = np.clip(P[..., 0] / (w / 2), -1, 1)
     V = np.clip(P[..., 1] / (d / 2), -1, 1)
-    P[..., 2] *= 1 + puff * (1 - U ** 2) * (1 - V ** 2)
+    dome = ((1 - U ** 2) * (1 - V ** 2)) ** a
+    pb = puff if puff_bottom is None else puff_bottom
+    # mặt trên/dưới căng phồng (mặt dưới có thể phồng ít hơn vì gối nằm trên mặt phẳng)
+    P[..., 2] *= 1 + np.where(P[..., 2] > 0, puff, pb) * dome
+    if wrinkles:
+        wr = np.sin(U * 9 + V * 4) * np.sin(V * 7 - U * 3) * dome * (1 - dome)
+        P[..., 2] += np.sign(P[..., 2]) * wrinkles * 0.012 * wr
     zs = P[:, 0, 2] / (h / 2)
     rims = [P[int(np.argmin(np.abs(zs - s * rim_at)))].copy() for s in (-1, 1)]
     return grid_mesh(P), rims, P[P.shape[0] // 2].copy()
@@ -345,8 +351,9 @@ build("n01", [part(body, WHITE), part(tube(rim, 0.0025), WHITE, mul=0.95)])
 body, rim = stuffed(0.70, 0.50, 0.21, pw=2.4, a=0.4, edge=0.28)
 build("n02", [part(body, "#ECEAE6"), part(tube(rim, 0.004), "#ECEAE6", mul=0.93, rough=0.85)])
 
-# N03 Form Support – thành gusset, 2 viền trên/dưới, mặt trên phồng
-body, rims, mid = gusset(0.70, 0.50, 0.12, e_vert=0.42, puff=0.16)
+# N03 Form Support – thành gusset ~8 cm, 2 viền trên/dưới, mặt trên & dưới căng phồng (giữa ~19 cm)
+body, rims, mid = gusset(0.70, 0.50, 0.08, e_vert=0.32, e_horiz=0.2, puff=1.9, puff_bottom=0.7, a=0.85,
+                         rim_at=0.85, wrinkles=1.0)
 build("n03", [part(body, "#EDEBEE")] + [part(tube(r * [1.002, 1.002, 1], 0.0042), "#EDEBEE", mul=0.92, rough=0.85) for r in rims])
 
 # N04 Low Profile – gối thấp, mặt trần bông hình thoi, viền mảnh
