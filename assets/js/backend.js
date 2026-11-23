@@ -119,14 +119,24 @@
   };
 
   /* ---------- Pillow Quiz & Liên hệ ---------- */
+  // Kết quả quiz lưu chung ở "quizResults" (cả khách vãng lai) để quản trị viên xem tổng hợp
   Backend.saveQuiz = async (result) => {
-    const u = need();
-    await db.collection("users").doc(u.uid).collection("quiz").add({ ...clean(result), createdAt: FieldValue.serverTimestamp() });
+    const u = auth.currentUser;
+    await db.collection("quizResults").add({
+      ...clean(result), uid: u ? u.uid : null, name: (u && u.displayName) || "", email: (u && u.email) || "",
+      createdAt: FieldValue.serverTimestamp(), createdAtMs: Date.now(),
+    });
   };
   Backend.myQuiz = async () => {
     const u = need();
-    const qs = await db.collection("users").doc(u.uid).collection("quiz").orderBy("createdAt", "desc").limit(10).get();
-    return qs.docs.map((d) => d.data());
+    const qs = await db.collection("quizResults").where("uid", "==", u.uid).get();
+    return qs.docs.map((d) => d.data()).sort((a, b) => b.createdAtMs - a.createdAtMs).slice(0, 10);
+  };
+  // Chỉ quản trị viên đọc được (theo firestore.rules)
+  Backend.allQuiz = async (max = 2000) => {
+    need();
+    const qs = await db.collection("quizResults").limit(max).get();
+    return qs.docs.map((d) => ({ _id: d.id, ...d.data() })).sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
   };
   Backend.saveContact = async (msg) => {
     const u = auth.currentUser;

@@ -42,9 +42,11 @@ tools/gen_models.py # script tạo mô hình 3D
 - Cấu hình: `assets/js/firebase-config.js`; mã kết nối: `assets/js/backend.js`; thư viện Firebase 10.12.2 (Apache-2.0) đóng kèm trong `assets/vendor/firebase/`.
 - Khách có thể đăng ký/đăng nhập bằng email + mật khẩu hoặc Google, quên mật khẩu, lưu địa chỉ giao hàng, xem lịch sử đơn và kết quả Pillow Quiz tại trang `#account`. Đặt hàng không bắt buộc đăng nhập.
 - Dữ liệu trong Firestore:
-  - `users/{uid}` – hồ sơ, địa chỉ; `users/{uid}/quiz/*` – kết quả Pillow Quiz
+  - `users/{uid}` – hồ sơ, địa chỉ
+  - `quizResults/*` – kết quả Pillow Quiz của mọi khách (kể cả khách vãng lai); khách có tài khoản kèm tên, email
   - `orders/{mãĐơn}` – đơn hàng (trường `step` 0–4 là trạng thái: đã đặt → xác nhận → đóng gói → đang giao → đã giao; `paid` là đã thanh toán)
   - `contacts/*` – lời nhắn từ form liên hệ
+- **Trang quản trị kết quả quiz**: `#admin-quiz` (ví dụ https://hoandk20.github.io/Nestora/#admin-quiz). Đăng nhập bằng email quản trị khai báo trong `firestore.rules` để xem thống kê câu trả lời, sản phẩm được gợi ý nhiều nhất, bảng chi tiết từng lượt (lọc theo tên/email, sản phẩm, loại khách, thời gian) và xuất CSV.
 - Cập nhật trạng thái đơn: mở Firebase Console → Firestore → `orders` → chọn đơn → sửa `step` (và `paid`). Khách thấy trạng thái mới ở trang đơn hàng.
 
 ### Việc cần làm một lần trong Firebase Console

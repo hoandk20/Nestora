@@ -37,6 +37,17 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // Kết quả Pillow Quiz: ai cũng lưu được (kể cả khách vãng lai);
+    // khách xem được kết quả của chính mình, quản trị viên xem tất cả (trang #admin-quiz)
+    match /quizResults/{resultId} {
+      allow create: if request.resource.data.answers is map
+        && request.resource.data.top is list && request.resource.data.top.size() <= 10
+        && ((!signedIn() && request.resource.data.uid == null)
+            || (signedIn() && request.resource.data.uid == request.auth.uid));
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
     // Lời nhắn từ form liên hệ: ai cũng gửi được, chỉ quản trị viên đọc
     match /contacts/{msgId} {
       allow create: if request.resource.data.message is string

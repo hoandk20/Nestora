@@ -3,7 +3,7 @@
   "use strict";
 
   // Đổi số này mỗi khi cập nhật mô hình 3D để trình duyệt tải lại bản mới (tránh cache)
-  const ASSET_VERSION = "202611231540";
+  const ASSET_VERSION = "202611231619";
 
   /* ---------- Utils ---------- */
   const $ = (s, el = document) => el.querySelector(s);
@@ -651,7 +651,7 @@
     const res = scoreProducts(a);
     store.set("quiz", a);
     const top = res.slice(0, 3), more = res.slice(3, 7);
-    if (window.Backend && Backend.user) Backend.saveQuiz({ answers: a, top: top.map((r) => ({ id: r.p.id, pct: r.pct })) }).catch(() => {});
+    if (window.Backend && Backend.available) Backend.saveQuiz({ answers: a, top: top.map((r) => ({ id: r.p.id, pct: r.pct })) }).catch(() => {});
     const summary = QUIZ.map((q) => {
       const v = a[q.key];
       const lab = (x) => { const t = q.options.find((o) => o[0] === x)[1]; return q.key === "budget" ? t : t.split(" – ")[0].split(",")[0]; };
@@ -1268,13 +1268,144 @@
         const box = $("#myQuiz");
         if (!box) return;
         box.innerHTML = list.length ? list.map((q) => {
-          const when = q.createdAt && q.createdAt.toDate ? q.createdAt.toDate().toLocaleDateString("vi-VN") : "";
+          const when = q.createdAtMs ? new Date(q.createdAtMs).toLocaleDateString("vi-VN") : "";
           const tops = (q.top || []).map((t) => { const p = byId(t.id); return p ? `<a class="chip" href="#product-${p.id}">${esc(p.name)} · ${t.pct}%</a>` : ""; }).join(" ");
           return `<div class="quiz-row"><span class="muted">${when}</span><div class="chips" style="margin:0">${tops}</div></div>`;
         }).join("") + '<a class="btn btn-outline btn-sm" href="#quiz" style="margin-top:12px">Làm lại Pillow Quiz</a>'
           : '<p class="muted" style="margin:0">Bạn chưa làm Pillow Quiz. <a class="link-btn" href="#quiz">Làm ngay</a></p>';
       }).catch(() => { const box = $("#myQuiz"); if (box) box.innerHTML = '<p class="muted">Không tải được kết quả quiz.</p>'; });
     }
+  }
+
+
+  /* ----- Quản trị: kết quả Pillow Quiz của khách hàng ----- */
+  const QLAB = Object.fromEntries(QUIZ.map((q) => [q.key, Object.fromEntries(q.options.map(([v, t]) => [v, q.key === "budget" ? t.replace(" VNĐ", "") : t.split(" – ")[0].split(",")[0]]))]));
+  const QTITLE = { purpose: "Mục đích sử dụng", position: "Tư thế nằm", feel: "Cảm giác mong muốn", height: "Chiều cao", fullness: "Độ đầy đặn", quality: "Tiêu chí chất lượng", budget: "Ngân sách" };
+  let adminData = null;
+  const adminFilter = { q: "", product: "", who: "", days: "" };
+
+  views.admin = () => `
+    <section class="page-hero"><div class="container">
+      ${crumbs([["#account", "Tài khoản"], [null, "Kết quả Pillow Quiz"]])}
+      <span class="eyebrow">Quản trị</span><h1>Kết quả Pillow Quiz của khách hàng</h1>
+      <p>Tổng hợp câu trả lời và sản phẩm được gợi ý cho từng khách sau khi hoàn thành Pillow Quiz.</p>
+    </div></section>
+    <div class="container admin-wrap" id="adminMount"><div class="viewer-loading" style="position:static;background:none"><span class="spinner"></span>Đang tải dữ liệu…</div></div>`;
+
+  const ansText = (key, v) => Array.isArray(v) ? v.map((x) => QLAB[key][x] || x).join(", ") : (QLAB[key] && QLAB[key][v]) || v || "–";
+  const whenText = (r) => r.createdAtMs ? new Date(r.createdAtMs).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "–";
+
+  function adminFiltered() {
+    const f = adminFilter, q = f.q.trim().toLowerCase();
+    const since = f.days ? Date.now() - +f.days * 86400000 : 0;
+    return adminData.filter((r) =>
+      (!q || (r.name || "").toLowerCase().includes(q) || (r.email || "").toLowerCase().includes(q)) &&
+      (!f.product || (r.top && r.top[0] && r.top[0].id === f.product)) &&
+      (!f.who || (f.who === "member" ? !!r.uid : !r.uid)) &&
+      (!since || (r.createdAtMs || 0) >= since));
+  }
+
+  // Biểu đồ thanh ngang một chuỗi: một màu thương hiệu, nhãn giá trị trực tiếp, chú thích khi rê chuột
+  function barList(rows, total) {
+    const max = Math.max(1, ...rows.map((r) => r.n));
+    return `<div class="bars">${rows.map((r) => {
+      const pct = total ? Math.round((r.n / total) * 100) : 0;
+      return `<div class="bar-row" title="${esc(r.label)}: ${r.n} lượt (${pct}%)">
+        <span class="bar-label">${esc(r.label)}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${Math.max(r.n ? 2 : 0, (r.n / max) * 100)}%"></span></span>
+        <span class="bar-val">${r.n} <small>(${pct}%)</small></span></div>`;
+    }).join("")}</div>`;
+  }
+
+  function renderAdmin() {
+    const box = $("#adminMount");
+    if (!box || !adminData) return;
+    const list = adminFiltered();
+    const total = list.length;
+    const members = new Set(list.filter((r) => r.uid).map((r) => r.uid)).size;
+    const guests = list.filter((r) => !r.uid).length;
+    const topCount = {};
+    list.forEach((r) => { const id = r.top && r.top[0] && r.top[0].id; if (id) topCount[id] = (topCount[id] || 0) + 1; });
+    const topRows = PRODUCTS.map((p) => ({ label: `${p.code} ${p.name}`, n: topCount[p.id] || 0 })).filter((r) => r.n).sort((a, b) => b.n - a.n);
+    const best = topRows[0];
+    const dist = (key) => {
+      const c = {};
+      list.forEach((r) => { const v = r.answers && r.answers[key]; (Array.isArray(v) ? v : v ? [v] : []).forEach((x) => (c[x] = (c[x] || 0) + 1)); });
+      return QUIZ.find((q) => q.key === key).options.map(([v]) => ({ label: QLAB[key][v], n: c[v] || 0 }));
+    };
+    const sel = (id, opts, val) => `<select class="select" id="${id}">${opts.map(([v, t]) => `<option value="${v}" ${v === val ? "selected" : ""}>${t}</option>`).join("")}</select>`;
+    box.innerHTML = `
+      <div class="admin-filters">
+        <input class="input" id="af-q" placeholder="Tìm theo tên hoặc email" value="${esc(adminFilter.q)}" aria-label="Tìm khách hàng">
+        ${sel("af-product", [["", "Mọi sản phẩm gợi ý"], ...PRODUCTS.map((p) => [p.id, `${p.code} ${p.name}`])], adminFilter.product)}
+        ${sel("af-who", [["", "Tất cả khách"], ["member", "Khách có tài khoản"], ["guest", "Khách vãng lai"]], adminFilter.who)}
+        ${sel("af-days", [["", "Mọi thời gian"], ["7", "7 ngày qua"], ["30", "30 ngày qua"], ["90", "90 ngày qua"]], adminFilter.days)}
+        <button class="btn btn-outline btn-sm" id="af-refresh">Tải lại</button>
+        <button class="btn btn-primary btn-sm" id="af-csv" ${total ? "" : "disabled"}>Xuất CSV</button>
+      </div>
+      <div class="stat-tiles">
+        <div class="stat"><span class="k">Lượt làm quiz</span><strong>${total}</strong></div>
+        <div class="stat"><span class="k">Khách có tài khoản</span><strong>${members}</strong></div>
+        <div class="stat"><span class="k">Lượt của khách vãng lai</span><strong>${guests}</strong></div>
+        <div class="stat"><span class="k">Gợi ý nhiều nhất</span><strong class="sm">${best ? esc(best.label) : "–"}</strong></div>
+      </div>
+      ${total ? `
+      <div class="admin-grid">
+        <div class="panel"><h3>Sản phẩm được gợi ý phù hợp nhất</h3><p class="muted chart-note">Số lượt mỗi sản phẩm đứng đầu kết quả</p>${barList(topRows, total)}</div>
+        <div class="panel"><h3>${QTITLE.purpose}</h3>${barList(dist("purpose"), total)}<h3 style="margin-top:22px">${QTITLE.budget}</h3>${barList(dist("budget"), total)}</div>
+        <div class="panel"><h3>${QTITLE.feel}</h3>${barList(dist("feel"), total)}<h3 style="margin-top:22px">${QTITLE.position}</h3>${barList(dist("position"), total)}</div>
+        <div class="panel"><h3>${QTITLE.height}</h3>${barList(dist("height"), total)}<h3 style="margin-top:22px">${QTITLE.fullness}</h3>${barList(dist("fullness"), total)}</div>
+        <div class="panel"><h3>${QTITLE.quality}</h3><p class="muted chart-note">Khách được chọn nhiều đáp án</p>${barList(dist("quality"), total)}</div>
+      </div>
+      <div class="panel">
+        <h3>Chi tiết từng lượt (${total})</h3>
+        <div class="table-scroll"><table class="admin-table">
+          <thead><tr><th>Thời gian</th><th>Khách hàng</th><th>Mục đích</th><th>Tư thế</th><th>Cảm giác</th><th>Chiều cao</th><th>Độ đầy đặn</th><th>Tiêu chí</th><th>Ngân sách</th><th>Gợi ý (mức phù hợp)</th></tr></thead>
+          <tbody>${list.slice(0, 500).map((r) => `<tr>
+            <td class="nowrap">${whenText(r)}</td>
+            <td>${r.uid ? `<b>${esc(r.name || "Khách hàng")}</b><br><small class="muted">${esc(r.email || "")}</small>` : '<span class="muted">Khách vãng lai</span>'}</td>
+            ${["purpose", "position", "feel", "height", "fullness", "quality", "budget"].map((k) => `<td>${esc(ansText(k, r.answers && r.answers[k]))}</td>`).join("")}
+            <td>${(r.top || []).map((t, i) => { const p = byId(t.id); return p ? `<a class="chip ${i ? "" : "chip-top"}" href="#product-${p.id}">${esc(p.name)} · ${t.pct}%</a>` : ""; }).join(" ")}</td>
+          </tr>`).join("")}</tbody>
+        </table></div>
+        ${total > 500 ? '<p class="muted" style="font-size:.8rem">Hiển thị 500 lượt mới nhất – xuất CSV để xem đầy đủ.</p>' : ""}
+      </div>` : `<div class="empty"><h3>Chưa có lượt làm quiz nào${adminData.length ? " khớp bộ lọc" : ""}</h3><p class="muted">Kết quả sẽ xuất hiện ở đây khi khách hoàn thành Pillow Quiz.</p></div>`}`;
+
+    const rerender = () => { renderAdmin(); };
+    $("#af-q").addEventListener("input", (e) => { adminFilter.q = e.target.value; clearTimeout(renderAdmin.t); renderAdmin.t = setTimeout(() => { rerender(); const i = $("#af-q"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 250); });
+    $("#af-product").addEventListener("change", (e) => { adminFilter.product = e.target.value; rerender(); });
+    $("#af-who").addEventListener("change", (e) => { adminFilter.who = e.target.value; rerender(); });
+    $("#af-days").addEventListener("change", (e) => { adminFilter.days = e.target.value; rerender(); });
+    $("#af-refresh").addEventListener("click", () => { adminData = null; bindAdmin(); });
+    $("#af-csv").addEventListener("click", () => {
+      const head = ["Thời gian", "Tên", "Email", "Loại khách", ...["purpose", "position", "feel", "height", "fullness", "quality", "budget"].map((k) => QTITLE[k]), "Gợi ý 1", "Gợi ý 2", "Gợi ý 3"];
+      const rows = list.map((r) => [whenText(r), r.name || "", r.email || "", r.uid ? "Có tài khoản" : "Vãng lai",
+        ...["purpose", "position", "feel", "height", "fullness", "quality", "budget"].map((k) => ansText(k, r.answers && r.answers[k])),
+        ...[0, 1, 2].map((i) => { const t = r.top && r.top[i]; const p = t && byId(t.id); return p ? `${p.name} (${t.pct}%)` : ""; })]);
+      const csv = "﻿" + [head, ...rows].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      a.download = `nestora-pillow-quiz-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    });
+  }
+
+  function bindAdmin() {
+    const box = $("#adminMount");
+    if (!box) return;
+    const be = BE();
+    if (!be.available) { box.innerHTML = '<div class="empty"><h3>Chưa kết nối được máy chủ</h3><p class="muted">Kiểm tra kết nối mạng rồi tải lại trang.</p></div>'; return; }
+    if (!be.authReady) return; // onAuth sẽ render lại
+    if (!be.user) { box.innerHTML = '<div class="empty"><h3>Vui lòng đăng nhập bằng tài khoản quản trị</h3><a class="btn btn-primary" href="#account">Đăng nhập</a></div>'; return; }
+    if (adminData) { renderAdmin(); return; }
+    be.allQuiz().then((d) => { adminData = d; renderAdmin(); })
+      .catch((err) => {
+        box.innerHTML = err && err.code === "permission-denied"
+          ? `<div class="empty"><h3>Tài khoản này không có quyền quản trị</h3><p class="muted">Bạn đang đăng nhập bằng ${esc(be.user.email || "")}. Chỉ email quản trị khai báo trong Firestore Rules mới xem được trang này.</p></div>`
+          : `<div class="empty"><h3>Không tải được dữ liệu</h3><p class="muted">${esc(be.message(err))}</p><button class="btn btn-outline" id="af-retry">Thử lại</button></div>`;
+        const r = $("#af-retry"); if (r) r.addEventListener("click", bindAdmin);
+      });
   }
 
   views.notfound = () => `<div class="container section"><div class="empty"><h3>Không tìm thấy trang</h3><p class="muted">Trang bạn tìm có thể đã được di chuyển.</p><a class="btn btn-primary" href="#home">Về trang chủ</a></div></div>`;
@@ -1513,8 +1644,8 @@
     const name = (i < 0 ? raw : raw.slice(0, i)) || "home";
     return { name, params: i < 0 ? [] : [raw.slice(i + 1)], query: new URLSearchParams() };
   }
-  const BINDERS = { account: bindAccount, shop: bindShop, product: bindProduct, cart: bindCart, checkout: bindCheckout, order: bindOrder, track: bindTrack, support: bindSupport };
-  const TITLES = { home: "Comfort is Personal", shop: "Shop", product: "Sản phẩm", story: "Our Story", quiz: "Pillow Quiz", journal: "Journal", cart: "Giỏ hàng", checkout: "Thanh toán", order: "Đơn hàng", track: "Theo dõi đơn hàng", support: "Hỗ trợ khách hàng", wishlist: "Yêu thích", account: "Tài khoản" };
+  const BINDERS = { admin: bindAdmin, account: bindAccount, shop: bindShop, product: bindProduct, cart: bindCart, checkout: bindCheckout, order: bindOrder, track: bindTrack, support: bindSupport };
+  const TITLES = { home: "Comfort is Personal", shop: "Shop", product: "Sản phẩm", story: "Our Story", quiz: "Pillow Quiz", journal: "Journal", cart: "Giỏ hàng", checkout: "Thanh toán", order: "Đơn hàng", track: "Theo dõi đơn hàng", support: "Hỗ trợ khách hàng", wishlist: "Yêu thích", account: "Tài khoản", admin: "Kết quả Pillow Quiz" };
 
   function render(keepScroll) {
     const r = route();
@@ -1545,7 +1676,8 @@
       btn.setAttribute("aria-label", u ? `Tài khoản: ${u.name || u.email}` : "Đăng nhập / Đăng ký");
       btn.title = u ? (u.name || u.email) : "Đăng nhập / Đăng ký";
       const r = route().name;
-      if (["account", "checkout", "order", "track"].includes(r) && !(first && r === "checkout" && !u)) render(true);
+      if (r === "admin") adminData = null;
+      if (["account", "checkout", "order", "track", "admin"].includes(r) && !(first && r === "checkout" && !u)) render(true);
       first = false;
     });
   }
