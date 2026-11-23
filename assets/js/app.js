@@ -525,8 +525,8 @@
         <model-viewer id="mv" src="assets/models/${p.id}.glb" alt="Mô hình 3D gối ${esc(p.name)}"
           ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed" ar-placement="floor"
           camera-controls touch-action="pan-y" auto-rotate auto-rotate-delay="1500" rotation-per-second="18deg"
-          interaction-prompt="none" shadow-intensity="1.3" shadow-softness="0.8" exposure="0.85" tone-mapping="aces"
-          camera-orbit="25deg 76deg auto" min-camera-orbit="auto 10deg auto" max-camera-orbit="auto 88deg auto"
+          interaction-prompt="none" shadow-intensity="1.3" shadow-softness="0.8" exposure="1.0" tone-mapping="commerce"
+          camera-orbit="28deg 78deg auto" min-camera-orbit="auto 10deg auto" max-camera-orbit="auto 88deg auto"
           environment-image="neutral" style="background-color:${p.tone}">
           <button slot="ar-button" class="ar-btn">${ICON.cube} Xem trong phòng của bạn</button>
           <div class="mv-progress" slot="progress-bar"><span></span></div>
