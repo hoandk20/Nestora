@@ -2,6 +2,9 @@
 (function () {
   "use strict";
 
+  // Đổi số này mỗi khi cập nhật mô hình 3D để trình duyệt tải lại bản mới (tránh cache)
+  const ASSET_VERSION = "202611230823";
+
   /* ---------- Utils ---------- */
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -522,7 +525,7 @@
     box.innerHTML = '<div class="viewer-loading"><span class="spinner"></span>Đang tải mô hình 3D…</div>';
     loadModelViewer().then(() => {
       box.innerHTML = `
-        <model-viewer id="mv" src="assets/models/${p.id}.glb" alt="Mô hình 3D gối ${esc(p.name)}"
+        <model-viewer id="mv" src="assets/models/${p.id}.glb?v=${ASSET_VERSION}" alt="Mô hình 3D gối ${esc(p.name)}"
           ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed" ar-placement="floor"
           camera-controls touch-action="pan-y" auto-rotate auto-rotate-delay="1500" rotation-per-second="18deg"
           interaction-prompt="none" shadow-intensity="1.3" shadow-softness="0.8" exposure="1.0" tone-mapping="commerce"
