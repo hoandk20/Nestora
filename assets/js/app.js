@@ -1132,14 +1132,131 @@
     chatBody.appendChild(m);
     chatBody.scrollTop = chatBody.scrollHeight;
   }
-  function botReply(text) {
+  // Trả lời bằng bộ câu hỏi thường gặp (dùng khi AI không phản hồi)
+  function faqReply(text) {
     const t = text.toLowerCase();
     const hit = FAQ.map((f) => ({ f, n: f.k.filter((k) => t.includes(k)).length })).sort((a, b) => b.n - a.n)[0];
-    setTimeout(() => {
-      if (hit && hit.n > 0) addMsg(hit.f.a + (hit.f.link ? `<br><a href="${hit.f.link[0]}">${hit.f.link[1]} →</a>` : ""));
-      else if (/(mềm|cứng|chắc|cao|thấp|nằm|ngủ)/.test(t)) addMsg('Để gợi ý chính xác, bạn hãy thử Pillow Quiz nhé – chỉ mất khoảng 1 phút.<br><a href="#quiz">Làm Pillow Quiz →</a>');
-      else addMsg('Cảm ơn bạn! Câu hỏi này cần tư vấn viên hỗ trợ thêm.<br><a href="https://zalo.me/" target="_blank" rel="noopener">Chat với tư vấn viên qua Zalo →</a>');
-    }, 450);
+    if (hit && hit.n > 0) return hit.f.a + (hit.f.link ? `<br><a href="${hit.f.link[0]}">${hit.f.link[1]} →</a>` : "");
+    if (/(mềm|cứng|chắc|cao|thấp|nằm|ngủ)/.test(t)) return 'Để gợi ý chính xác, bạn hãy thử Pillow Quiz nhé – chỉ mất khoảng 1 phút.<br><a href="#quiz">Làm Pillow Quiz →</a>';
+    return 'Cảm ơn bạn! Câu hỏi này cần tư vấn viên hỗ trợ thêm.<br><a href="https://zalo.me/" target="_blank" rel="noopener">Chat với tư vấn viên qua Zalo →</a>';
+  }
+
+  /* ----- Trợ lý AI (Pollinations – miễn phí, không cần API key) ----- */
+  const AI = {
+    enabled: true,
+    endpoint: "https://text.pollinations.ai/openai", // API tương thích OpenAI
+    fallbackEndpoint: "https://text.pollinations.ai/", // GET /{prompt} trả về văn bản
+    model: "openai",
+    timeoutMs: 25000,
+    maxHistory: 10,
+  };
+  const chatHistory = [];
+
+  function systemPrompt() {
+    const fmt = (p) => {
+      const spec = Object.fromEntries(p.specs);
+      return `- ${p.code} ${p.name} (${p.collection === "sleep" ? "Sleep" : "Move"} Collection, ${p.category}): ${money(p.price)}; ` +
+        `kích thước ${spec["Kích thước"]}; ${spec["Chiều cao"] || spec["Chiều cao mục tiêu"] || spec["Độ dày"] || ""}; ` +
+        `ruột ${p.fill}; cảm giác ${p.feel.map((f) => FILTER_LABELS.feel[f]).join("/")}; ` +
+        `${p.fullness.length ? "độ đầy đặn " + p.fullness.map((f) => FILTER_LABELS.fullness[f]).join("/") + "; " : ""}` +
+        `phù hợp: ${p.reason}`;
+    };
+    return [
+      "Bạn là trợ lý tư vấn của NESTORA – thương hiệu gối Việt Nam, slogan \"Comfort is Personal – Thoải mái theo cách riêng của bạn\".",
+      "Luôn trả lời bằng tiếng Việt, thân thiện, ngắn gọn (tối đa khoảng 120 từ). Chỉ dùng thông tin dưới đây; nếu không biết, hãy nói chưa có thông tin và gợi ý khách liên hệ tư vấn viên qua Zalo.",
+      "Khi gợi ý sản phẩm, nêu đúng tên sản phẩm và giá, giải thích ngắn vì sao phù hợp. Không bịa sản phẩm, giá, khuyến mãi hay chính sách. Không đưa ra lời khuyên y tế; với vấn đề đau cổ, vai, gáy kéo dài, khuyên khách gặp bác sĩ.",
+      "Nếu khách chưa rõ nhu cầu, hỏi lại về mục đích sử dụng, tư thế nằm, độ mềm và chiều cao mong muốn, hoặc gợi ý làm Pillow Quiz.",
+      "",
+      "SẢN PHẨM:",
+      ...PRODUCTS.map(fmt),
+      "",
+      "CHÍNH SÁCH:",
+      ...FAQ.map((f) => `- ${f.q} ${f.a}`),
+      "- Mã giảm giá đang có: NESTORA10 (giảm 10%).",
+    ].join("\n");
+  }
+
+  async function askAI(question) {
+    const messages = [{ role: "system", content: systemPrompt() }, ...chatHistory.slice(-AI.maxHistory), { role: "user", content: question }];
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), AI.timeoutMs);
+    try {
+      let text = "";
+      try {
+        const r = await fetch(AI.endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: AI.model, messages, private: true }),
+          signal: ctrl.signal,
+        });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const data = await r.json();
+        text = data?.choices?.[0]?.message?.content || "";
+      } catch (e) {
+        if (ctrl.signal.aborted) throw e;
+        // dự phòng: endpoint GET dạng văn bản thuần
+        const convo = chatHistory.slice(-6).map((m) => (m.role === "user" ? "Khách: " : "Trợ lý: ") + m.content).join("\n");
+        const prompt = (convo ? convo + "\n" : "") + "Khách: " + question;
+        const url = AI.fallbackEndpoint + encodeURIComponent(prompt) + "?model=" + AI.model + "&private=true&system=" + encodeURIComponent(systemPrompt());
+        const r = await fetch(url, { signal: ctrl.signal });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        text = await r.text();
+      }
+      text = text.trim();
+      if (!text) throw new Error("empty");
+      return text;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Định dạng câu trả lời: an toàn HTML, **đậm**, xuống dòng, tự gắn link tên sản phẩm
+  function formatAI(text) {
+    let h = esc(text).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>");
+    const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    [...PRODUCTS].sort((a, b) => b.name.length - a.name.length).forEach((p) => {
+      const re = new RegExp(`(^|[^A-Za-z0-9])(${reEsc(p.name)})(?![A-Za-z0-9])`, "i");
+      // chỉ thay ở phần văn bản chưa nằm trong thẻ <a>, mỗi sản phẩm gắn link một lần
+      const parts = h.split(/(<a [^>]*>.*?<\/a>)/);
+      for (let i = 0; i < parts.length; i += 2) {
+        if (re.test(parts[i])) { parts[i] = parts[i].replace(re, `$1<a href="#product-${p.id}">$2</a>`); break; }
+      }
+      h = parts.join("");
+    });
+    return h;
+  }
+
+  function typing(on) {
+    let el = $("#chatTyping");
+    if (on && !el) {
+      el = document.createElement("div");
+      el.id = "chatTyping";
+      el.className = "msg bot typing";
+      el.innerHTML = "<span></span><span></span><span></span>";
+      chatBody.appendChild(el);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    } else if (!on && el) el.remove();
+  }
+
+  let aiBusy = false;
+  async function botReply(text) {
+    if (!AI.enabled) { setTimeout(() => addMsg(faqReply(text)), 450); return; }
+    aiBusy = true;
+    typing(true);
+    const send = $("#chatForm button");
+    send.disabled = true;
+    try {
+      const answer = await askAI(text);
+      typing(false);
+      addMsg(formatAI(answer));
+      chatHistory.push({ role: "user", content: text }, { role: "assistant", content: answer });
+    } catch (e) {
+      typing(false);
+      addMsg(faqReply(text) + '<br><small class="muted">(Trợ lý AI đang bận, đây là câu trả lời tự động.)</small>');
+    } finally {
+      aiBusy = false;
+      send.disabled = false;
+    }
   }
   let chatInit = false;
   $("#chatToggle").addEventListener("click", () => {
@@ -1147,7 +1264,7 @@
     cb.hidden = !cb.hidden;
     if (!chatInit) {
       chatInit = true;
-      addMsg("Xin chào! 👋 NESTORA có thể giúp gì cho bạn? Chọn một câu hỏi bên dưới hoặc nhập câu hỏi của bạn.");
+      addMsg("Xin chào! 👋 Mình là trợ lý AI của NESTORA. Bạn có thể hỏi bất cứ điều gì về gối, ví dụ: <i>“Mình hay nằm nghiêng, thích gối chắc, nên chọn mẫu nào?”</i> – hoặc chọn câu hỏi nhanh bên dưới.");
       $("#chatQuick").innerHTML = FAQ.map((f, i) => `<button data-faq="${i}">${f.q}</button>`).join("");
     }
     if (!cb.hidden) $("#chatInput").focus();
@@ -1163,7 +1280,7 @@
   $("#chatForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const v = $("#chatInput").value.trim();
-    if (!v) return;
+    if (!v || aiBusy) return;
     addMsg(esc(v), "me");
     $("#chatInput").value = "";
     botReply(v);

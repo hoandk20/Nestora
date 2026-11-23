@@ -18,7 +18,10 @@ rồi truy cập http://localhost:8000.
 - Pillow Quiz 7 câu hỏi + hệ thống chấm điểm đề xuất (mục đích 5, cảm giác 4, chiều cao 3, độ đầy đặn 2, tư thế 1, mỗi tiêu chí chất lượng 2)
 - Góc kiến thức (Journal)
 - Giỏ hàng, mã giảm giá demo (`NESTORA10`), thanh toán (COD / chuyển khoản / trực tuyến – mô phỏng), xác nhận và theo dõi trạng thái đơn hàng
-- Hỗ trợ khách hàng: chatbox FAQ, nút Zalo, hướng dẫn mua hàng, chính sách giao hàng, đổi trả & bảo hành, liên hệ
+- Hỗ trợ khách hàng: chatbox trợ lý AI, nút Zalo, hướng dẫn mua hàng, chính sách giao hàng, đổi trả & bảo hành, liên hệ
+  - Chatbox gọi AI miễn phí của Pollinations (`text.pollinations.ai`, không cần API key); AI được nạp danh mục sản phẩm và chính sách từ `data.js`, tên sản phẩm trong câu trả lời tự thành link
+  - Nếu AI lỗi/quá 25 giây, chatbox tự trả lời bằng bộ câu hỏi thường gặp; cấu hình ở hằng `AI` trong `assets/js/app.js` (đặt `enabled: false` để tắt AI)
+  - Pollinations là dịch vụ cộng đồng, có thể chậm hoặc giới hạn; khi chạy thật nên chuyển sang API có hợp đồng qua một proxy server giữ API key
 - Xem gối 3D & AR trên trang chi tiết sản phẩm (Google model-viewer): xoay, phóng to; nút “Xem trong phòng của bạn” đặt gối vào không gian thật với kích thước thật
   - AR hoạt động trên Android (ARCore, Chrome) và iPhone/iPad (Safari, AR Quick Look); website cần chạy trên HTTPS
   - Mô hình được tạo bằng `tools/gen_models.py` theo kích thước trong bảng thông số; có thể thay bằng file GLB chụp/quét từ sản phẩm thật cùng tên trong `assets/models/`
