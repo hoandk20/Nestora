@@ -67,6 +67,14 @@ def fabric_texture(kind, size=256):
         h = np.clip(line * 5, 0, 1) ** 0.7
         h += 0.25 * np.sin(np.pi * x * 96) ** 2
         s = 5.5
+    elif kind == "jersey":  # thun dệt kim mịn: hàng vòng sợi li ti
+        X, Y = x * 32, y * 32
+        h = np.sin(np.pi * (X % 1)) ** 2 * (0.6 + 0.4 * np.sin(np.pi * (Y % 1)) ** 2)
+        h += 0.3 * np.sin(np.pi * ((X + 0.5 * np.floor(Y)) % 1)) ** 4
+        s = 1.1
+    elif kind == "smooth":  # vải trơn mịn, chỉ có thớ rất nhẹ
+        h = 0.15 * np.sin(np.pi * x * 128) ** 2
+        s = 0.8
     else:  # velvet: nhung mịn
         h = np.zeros_like(x)
         s = 1.2
@@ -74,7 +82,7 @@ def fabric_texture(kind, size=256):
     return normal_from_height(h, s)
 
 
-TEX = {k: fabric_texture(k) for k in ("weave", "knit", "mesh", "quilt", "diamond", "velvet")}
+TEX = {k: fabric_texture(k) for k in ("weave", "knit", "mesh", "quilt", "diamond", "jersey", "smooth", "velvet")}
 
 
 def srgb_lin(hexstr, mul=1.0):
@@ -91,7 +99,7 @@ def material(hexstr, tex="weave", rough=0.95, metal=0.0, mul=1.0):
 
 ZIP = dict(tex=None, rough=0.45, metal=0.6)
 # tỷ lệ lặp vân theo từng loại vải (lần lặp / mét)
-UV = {"weave": 28.0, "knit": 14.0, "mesh": 22.0, "quilt": 7.0, "diamond": 13.0, "velvet": 10.0}
+UV = {"weave": 28.0, "knit": 14.0, "mesh": 22.0, "quilt": 7.0, "diamond": 13.0, "jersey": 16.0, "smooth": 12.0, "velvet": 10.0}
 
 
 # ================================================================ geometry helpers
@@ -394,14 +402,15 @@ build("n08", [part(body, "#ECECEE", tex="knit"), part(tube(rim * [1.002, 1.002, 
 body, seam = bolster(1.20, 0.24, 0.16)
 build("n09", [part(body, "#E2D3BF"), part(tube(seam, 0.0025, closed=False, n=8), "#E2D3BF", mul=0.92)])
 
-# N10 Rest – chữ U dáng lưỡi liềm: mặt trên trần bông trắng, đáy xám đậm
+# N10 Rest – chữ U dáng lưỡi liềm: mặt trên thun trắng mịn, đáy vải xám than
 R, a, b = 0.092, 0.06, 0.055
 P, col, seam = u_pillow(R, a, b, theta=np.radians(150), taper=0.5)
 j0, j1 = col(np.radians(4)), col(np.radians(176))  # mặt trên: phi từ ~0° đến ~180°
 top, bot = u_panels(P, j0, j1)
-build("n10", [part(top, "#F2F1EF", tex="quilt"), part(bot, "#5C5A5E", tex="knit"),
-              part(tube(seam(j0), 0.004, closed=False, n=10), "#5C5A5E", mul=0.9),
-              part(tube(seam(j1), 0.004, closed=False, n=10), "#5C5A5E", mul=0.9)])
+# mặt trên: thun dệt kim trắng mịn, mờ; mặt dưới: vải xám than trơn, hơi bóng; đường nối mảnh
+build("n10", [part(top, "#F3F2F0", tex="jersey", rough=1.0), part(bot, "#4E4C51", tex="smooth", rough=0.62),
+              part(tube(seam(j0), 0.0022, closed=False, n=8), "#4E4C51", rough=0.62),
+              part(tube(seam(j1), 0.0022, closed=False, n=8), "#4E4C51", rough=0.62)])
 
 # N11 Move Travel – chữ U dẹt, tay dài: ngoài lưới xám đậm, mặt trên phía trong là dải nhung nâu nhạt
 R, a, b = 0.078, 0.07, 0.046
