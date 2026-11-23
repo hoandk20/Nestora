@@ -1,6 +1,6 @@
 # NESTORA – Web thương mại điện tử bán gối (demo giao diện)
 
-Bản demo front-end thuần HTML/CSS/JavaScript, **không cần server**. Dữ liệu sản phẩm nằm trong `assets/js/data.js`; giỏ hàng, yêu thích và đơn hàng được lưu trong `localStorage` của trình duyệt.
+Website thuần HTML/CSS/JavaScript, **không cần server riêng**. Dữ liệu sản phẩm nằm trong `assets/js/data.js`; giỏ hàng và yêu thích lưu trong `localStorage`. Tài khoản khách hàng, đơn hàng, kết quả quiz và lời nhắn liên hệ được lưu trên **Firebase** (Authentication + Firestore).
 
 ## Chạy thử
 Chạy bằng một web server tĩnh (cần thiết để tải mô hình 3D):
@@ -37,3 +37,17 @@ assets/models/      # mô hình 3D (GLB) n01–n12
 assets/vendor/      # model-viewer 3.5.0 (BSD-3-Clause)
 tools/gen_models.py # script tạo mô hình 3D
 ```
+
+## Tài khoản & dữ liệu khách hàng (Firebase)
+- Cấu hình: `assets/js/firebase-config.js`; mã kết nối: `assets/js/backend.js`; thư viện Firebase 10.12.2 (Apache-2.0) đóng kèm trong `assets/vendor/firebase/`.
+- Khách có thể đăng ký/đăng nhập bằng email + mật khẩu hoặc Google, quên mật khẩu, lưu địa chỉ giao hàng, xem lịch sử đơn và kết quả Pillow Quiz tại trang `#account`. Đặt hàng không bắt buộc đăng nhập.
+- Dữ liệu trong Firestore:
+  - `users/{uid}` – hồ sơ, địa chỉ; `users/{uid}/quiz/*` – kết quả Pillow Quiz
+  - `orders/{mãĐơn}` – đơn hàng (trường `step` 0–4 là trạng thái: đã đặt → xác nhận → đóng gói → đang giao → đã giao; `paid` là đã thanh toán)
+  - `contacts/*` – lời nhắn từ form liên hệ
+- Cập nhật trạng thái đơn: mở Firebase Console → Firestore → `orders` → chọn đơn → sửa `step` (và `paid`). Khách thấy trạng thái mới ở trang đơn hàng.
+
+### Việc cần làm một lần trong Firebase Console
+1. **Authentication → Sign-in method**: bật *Email/Password* (đã bật) và *Google* (nếu muốn đăng nhập bằng Google).
+2. **Authentication → Settings → Authorized domains**: thêm `hoandk20.github.io`.
+3. **Firestore Database → Rules**: dán nội dung file `firestore.rules`, thay `EMAIL_QUAN_TRI@gmail.com` bằng email Google của bạn, bấm **Publish**. (Chế độ thử nghiệm mặc định cho phép ai cũng đọc/ghi mọi dữ liệu – không an toàn khi có thông tin khách hàng.)

@@ -89,6 +89,25 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
   display: inline-grid; place-items: center; color: var(--plum); box-shadow: var(--shadow-soft); transition: .2s;
 }
 .icon-btn:hover { background: #fff; transform: translateY(-1px); }
+#accountBtn.signed::after { content: ""; position: absolute; right: 4px; bottom: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--success); border: 2px solid #fff; }
+.auth-layout { display: grid; grid-template-columns: minmax(0, 440px) minmax(0, 1fr); gap: 48px; align-items: start; padding-bottom: 80px; }
+.auth-card .auth-tabs { display: flex; width: 100%; margin-bottom: 22px; }
+.auth-card .auth-tabs button { flex: 1; }
+.auth-card form { display: grid; gap: 14px; }
+.auth-card .field.full { grid-column: auto; }
+.form-msg { margin: 0; font-size: .84rem; color: var(--danger); }
+.form-msg:empty { display: none; }
+.auth-card form .link-btn { justify-self: start; }
+.form-msg.ok { color: var(--success); }
+.or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: .8rem; margin: 18px 0; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.auth-benefits { padding-top: 10px; }
+.auth-benefits h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+.account-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 28px; align-items: start; padding-bottom: 80px; }
+.account-side { text-align: center; position: sticky; top: calc(var(--header-h) + 20px); }
+.avatar { width: 72px; height: 72px; border-radius: 50%; margin: 0 auto; display: grid; place-items: center; background: var(--plum); color: #fff; font-family: var(--serif); font-size: 1.8rem; }
+.quiz-row { display: flex; gap: 14px; align-items: center; padding: 10px 0; border-bottom: 1px dashed var(--line); flex-wrap: wrap; font-size: .85rem; }
+.checkout-auth { background: var(--mist); border-radius: var(--radius-sm); padding: 14px 18px; font-size: .88rem; margin-bottom: 20px; }
 .badge {
   position: absolute; top: -2px; right: -2px; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px;
   background: var(--clay); color: #fff; font-size: .68rem; font-weight: 600; display: grid; place-items: center;
@@ -586,7 +605,8 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
   .intro, .story-hero, .quiz-cta { grid-template-columns: 1fr; gap: 36px; }
   .tiles { grid-template-columns: 1fr; }
   .collections, .testimonials { grid-template-columns: 1fr; }
-  .shop-layout, .support-layout, .cart-layout, .pdp { grid-template-columns: 1fr; }
+  .shop-layout, .support-layout, .cart-layout, .pdp, .auth-layout, .account-layout { grid-template-columns: 1fr; }
+  .account-side { position: static; }
   .filters { position: fixed; inset: 0 auto 0 0; width: min(340px, 88%); z-index: 95; border-radius: 0 22px 22px 0; max-height: none; transform: translateX(-105%); transition: .3s; background: var(--blush); }
   .filters.open { transform: none; }
   .filter-open { display: inline-flex; }

@@ -3,7 +3,7 @@
   "use strict";
 
   // Đổi số này mỗi khi cập nhật mô hình 3D để trình duyệt tải lại bản mới (tránh cache)
-  const ASSET_VERSION = "202611231023";
+  const ASSET_VERSION = "202611231540";
 
   /* ---------- Utils ---------- */
   const $ = (s, el = document) => el.querySelector(s);
@@ -651,6 +651,7 @@
     const res = scoreProducts(a);
     store.set("quiz", a);
     const top = res.slice(0, 3), more = res.slice(3, 7);
+    if (window.Backend && Backend.user) Backend.saveQuiz({ answers: a, top: top.map((r) => ({ id: r.p.id, pct: r.pct })) }).catch(() => {});
     const summary = QUIZ.map((q) => {
       const v = a[q.key];
       const lab = (x) => { const t = q.options.find((o) => o[0] === x)[1]; return q.key === "budget" ? t : t.split(" – ")[0].split(",")[0]; };
@@ -796,6 +797,7 @@
     </div></section>
     <form class="container cart-layout" id="checkoutForm" novalidate>
       <div>
+        <div class="checkout-auth" id="checkoutAuth"></div>
         <div class="panel">
           <h3>Thông tin người nhận</h3>
           <div class="form-grid">
@@ -853,6 +855,18 @@
       $("#shipExp").textContent = money(free ? SHIP_FEE.express - SHIP_FEE.standard : SHIP_FEE.express);
     };
     updShip();
+    const be = BE();
+    const hint = $("#checkoutAuth");
+    if (be.available && be.user) {
+      hint.innerHTML = `Bạn đang đặt hàng với tài khoản <b>${esc(be.user.email || be.user.name)}</b>. Đơn hàng sẽ được lưu vào <a class="link-btn" href="#account">tài khoản của bạn</a>.`;
+      be.getProfile().then((p) => {
+        const fill = (name, val) => { if (val && form[name] && !form[name].value) form[name].value = val; };
+        fill("name", p.name || be.user.name); fill("phone", p.phone); fill("email", be.user.email);
+        fill("province", p.province); fill("district", p.district); fill("address", p.address);
+      }).catch(() => {});
+    } else if (be.available) {
+      hint.innerHTML = `<a class="link-btn" href="#account">Đăng nhập</a> để lưu địa chỉ và theo dõi đơn hàng trên mọi thiết bị, hoặc tiếp tục đặt hàng không cần tài khoản.`;
+    } else hint.hidden = true;
     form.addEventListener("change", (e) => {
       if (e.target.name === "ship") updShip();
       if (e.target.name === "pay") $("#payExtra").hidden = form.pay.value !== "online";
@@ -887,8 +901,18 @@
         customer: { name: d.name, phone: d.phone, email: d.email, address: `${d.address}, ${d.district}, ${d.province}`, note: d.note },
         step: 0, paid: false,
       };
-      const finish = () => {
+      const finish = async () => {
         if (d.pay === "online") order.paid = true;
+        if (be.available) {
+          try {
+            await Promise.race([be.saveOrder(order), new Promise((_, rej) => setTimeout(() => rej({ code: "unavailable" }), 10000))]);
+            order.synced = true;
+            if (be.user) be.saveProfile({ name: d.name, phone: d.phone, province: d.province, district: d.district, address: d.address }).catch(() => {});
+          } catch (err) {
+            order.synced = false;
+            toast("Đơn hàng đã lưu trên máy này nhưng chưa gửi được lên hệ thống. NESTORA sẽ liên hệ bạn qua điện thoại.");
+          }
+        }
         orders.unshift(order); store.set("orders", orders);
         cart = []; coupon = null; store.set("coupon", null); saveCart();
         justPlaced = order.id;
@@ -912,7 +936,9 @@
   const PAY_TEXT = { cod: "Thanh toán khi nhận hàng (COD)", bank: "Chuyển khoản ngân hàng", online: "Thanh toán trực tuyến" };
   views.order = ([id], query) => {
     const o = orders.find((x) => x.id === id);
-    if (!o) return `<div class="container section"><div class="empty"><h3>Không tìm thấy đơn hàng ${esc(id)}</h3><a class="btn btn-primary" href="#track">Tra cứu đơn hàng khác</a></div></div>`;
+    if (!o && BE().available && !BE().authReady) return `<div class="container section"><div class="viewer-loading" style="position:static;background:none"><span class="spinner"></span>Đang tải đơn hàng…</div></div>`;
+    if (!o && BE().user) return `<div class="container section" id="orderRemote" data-id="${esc(id)}"><div class="viewer-loading" style="position:static;background:none"><span class="spinner"></span>Đang tìm đơn hàng ${esc(id)}…</div></div>`;
+    if (!o) return `<div class="container section"><div class="empty"><h3>Không tìm thấy đơn hàng ${esc(id)}</h3><p class="muted">${BE().available ? "Nếu bạn đặt hàng khi đã đăng nhập, hãy <a class=\"link-btn\" href=\"#account\">đăng nhập</a> để xem đơn." : ""}</p><a class="btn btn-primary" href="#track">Tra cứu đơn hàng khác</a></div></div>`;
     const isNew = justPlaced === o.id;
     const d = new Date(o.createdAt);
     return `
@@ -927,7 +953,8 @@
             </div>
             <p class="muted" style="font-size:.84rem;margin:6px 0 0">Đặt lúc ${d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} · ${d.toLocaleDateString("vi-VN")}</p>
             <ol class="timeline">${STATUS.map(([t, s], i) => `<li class="${i <= o.step ? "done" : ""}"><strong>${t}</strong>${s}</li>`).join("")}</ol>
-            ${o.step < STATUS.length - 1 ? `<div class="center" style="margin-top:22px"><button class="btn btn-outline btn-sm" id="advance">Mô phỏng cập nhật trạng thái (demo)</button></div>` : ""}
+            ${o.synced ? `<p class="muted center" style="font-size:.8rem;margin:18px 0 0">Trạng thái được NESTORA cập nhật khi đơn hàng được xử lý.</p>`
+               : o.step < STATUS.length - 1 ? `<div class="center" style="margin-top:22px"><button class="btn btn-outline btn-sm" id="advance">Mô phỏng cập nhật trạng thái (demo)</button></div>` : ""}
           </div>
           ${o.pay === "bank" && !o.paid ? `
           <div class="panel">
@@ -939,7 +966,7 @@
               <div class="info-box"><div class="k">Nội dung</div><div class="v">${o.id}</div></div>
             </div>
             <p class="muted" style="font-size:.84rem">Số tiền: <b style="color:var(--plum)">${money(o.total)}</b>. Đơn hàng sẽ được xác nhận sau khi NESTORA nhận được thanh toán.</p>
-            <button class="btn btn-primary btn-sm" id="markPaid">Tôi đã chuyển khoản (demo)</button>
+            ${o.synced ? "" : '<button class="btn btn-primary btn-sm" id="markPaid">Tôi đã chuyển khoản (demo)</button>'}
           </div>` : ""}
           <div class="panel">
             <h3>Sản phẩm</h3>
@@ -967,7 +994,18 @@
     </div>`;
   };
   function bindOrder([id]) {
+    const be = BE();
     const o = orders.find((x) => x.id === id);
+    if (be.available && be.authReady && (be.user || (o && o.synced))) {
+      // lấy trạng thái mới nhất từ hệ thống (chủ đơn hoặc quản trị viên mới đọc được)
+      be.getOrder(id).then((r) => {
+        if (!r) { if (!o) render(true); return; }
+        const before = o ? JSON.stringify([o.step, o.paid]) : "";
+        cacheOrders([r]);
+        const now = orders.find((x) => x.id === id);
+        if (!o || JSON.stringify([now.step, now.paid]) !== before) render(true);
+      }).catch(() => { if (!o) { const box = $("#orderRemote"); if (box) box.innerHTML = `<div class="empty"><h3>Không tìm thấy đơn hàng ${esc(id)}</h3><a class="btn btn-primary" href="#track">Tra cứu đơn hàng khác</a></div>`; } });
+    }
     if (!o) return;
     const save = () => { store.set("orders", orders); render(); };
     const adv = $("#advance");
@@ -991,12 +1029,14 @@
       </div>
     </div>`;
   function bindTrack() {
+    const be = BE();
+    if (be.available && be.user) be.myOrders().then((list) => { if (list.length) { const n = orders.length; cacheOrders(list); if (orders.length !== n) render(true); } }).catch(() => {});
     const f = $("#trackForm");
     f && f.addEventListener("submit", (e) => {
       e.preventDefault();
       const id = $("#trackInput").value.trim().toUpperCase();
-      if (orders.find((o) => o.id === id)) location.hash = `#order-${id}`;
-      else toast("Không tìm thấy đơn hàng với mã này");
+      if (orders.find((o) => o.id === id) || (be.available && be.user)) location.hash = `#order-${id}`;
+      else toast(be.available ? "Không tìm thấy đơn hàng trên thiết bị này. Hãy đăng nhập nếu bạn đặt hàng bằng tài khoản." : "Không tìm thấy đơn hàng với mã này");
     });
   }
 
@@ -1043,9 +1083,9 @@
       <p class="muted" style="font-size:.8rem">* Thông tin liên hệ trong bản demo là thông tin minh họa.</p>
       <div class="panel" style="margin-top:24px"><h3>Gửi lời nhắn cho NESTORA</h3>
         <form class="form-grid" id="contactForm">
-          <div class="field"><label for="c-name">Họ tên</label><input id="c-name" required></div>
-          <div class="field"><label for="c-phone">Số điện thoại / Email</label><input id="c-phone" required></div>
-          <div class="field full"><label for="c-msg">Nội dung</label><textarea id="c-msg" rows="4" required></textarea></div>
+          <div class="field"><label for="c-name">Họ tên</label><input id="c-name" name="name" required></div>
+          <div class="field"><label for="c-phone">Số điện thoại / Email</label><input id="c-phone" name="contact" required></div>
+          <div class="field full"><label for="c-msg">Nội dung</label><textarea id="c-msg" name="message" rows="4" maxlength="1500" required></textarea></div>
           <div class="field full"><button class="btn btn-primary" style="justify-self:start">Gửi lời nhắn</button></div>
         </form></div>`,
   };
@@ -1064,7 +1104,177 @@
   };
   function bindSupport() {
     const f = $("#contactForm");
-    f && f.addEventListener("submit", (e) => { e.preventDefault(); f.reset(); toast("Cảm ơn bạn! NESTORA sẽ phản hồi sớm nhất."); });
+    f && f.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const d = Object.fromEntries(new FormData(f));
+      const be = BE();
+      const btn = f.querySelector("button");
+      btn.disabled = true;
+      try {
+        if (be.available) await be.saveContact({ name: d.name.trim(), contact: d.contact.trim(), message: d.message.trim().slice(0, 1500) });
+        f.reset();
+        toast("Cảm ơn bạn! NESTORA đã nhận lời nhắn và sẽ phản hồi sớm nhất.");
+      } catch (err) { toast("Chưa gửi được lời nhắn: " + be.message(err)); }
+      finally { btn.disabled = false; }
+    });
+  }
+
+
+  /* ----- Tài khoản (Firebase Authentication + Firestore) ----- */
+  const BE = () => window.Backend || { available: false, authReady: true, user: null };
+  let accountTab = "login";
+  const field = (id, label, type = "text", attrs = "") =>
+    `<div class="field full"><label for="${id}">${label}</label><input id="${id}" name="${id}" type="${type}" ${attrs}><span class="err"></span></div>`;
+
+  views.account = () => {
+    const be = BE();
+    const head = `<section class="page-hero"><div class="container">${crumbs([[null, "Tài khoản"]])}<span class="eyebrow">My account</span><h1>Tài khoản</h1></div></section>`;
+    if (!be.available) return head + `<div class="container" style="padding-bottom:80px"><div class="empty"><h3>Chưa kết nối được máy chủ tài khoản</h3><p class="muted">Kiểm tra kết nối mạng rồi tải lại trang. Bạn vẫn có thể mua hàng bình thường mà không cần đăng nhập.</p><a class="btn btn-primary" href="#shop">Tiếp tục mua sắm</a></div></div>`;
+    if (!be.authReady) return head + `<div class="container" style="padding-bottom:80px"><div class="viewer-loading" style="position:static;background:none"><span class="spinner"></span>Đang tải…</div></div>`;
+    if (!be.user) {
+      const tabs = `<div class="seg auth-tabs" role="tablist">
+          <button type="button" data-atab="login" class="${accountTab === "login" ? "on" : ""}" role="tab">Đăng nhập</button>
+          <button type="button" data-atab="register" class="${accountTab === "register" ? "on" : ""}" role="tab">Đăng ký</button></div>`;
+      let form;
+      if (accountTab === "register") {
+        form = `<form id="authForm" data-mode="register" novalidate>${field("a-name", "Họ và tên", "text", 'autocomplete="name"')}${field("a-email", "Email", "email", 'autocomplete="email"')}${field("a-pass", "Mật khẩu (ít nhất 6 ký tự)", "password", 'autocomplete="new-password"')}${field("a-pass2", "Nhập lại mật khẩu", "password", 'autocomplete="new-password"')}
+          <p class="form-msg" id="authMsg" role="alert"></p><button class="btn btn-primary btn-block" type="submit">Tạo tài khoản</button></form>`;
+      } else if (accountTab === "forgot") {
+        form = `<form id="authForm" data-mode="forgot" novalidate><p class="muted" style="margin-top:0">Nhập email đã đăng ký, NESTORA sẽ gửi link đặt lại mật khẩu.</p>${field("a-email", "Email", "email", 'autocomplete="email"')}
+          <p class="form-msg" id="authMsg" role="alert"></p><button class="btn btn-primary btn-block" type="submit">Gửi link đặt lại mật khẩu</button>
+          <button type="button" class="link-btn" data-atab="login" style="margin-top:14px">← Quay lại đăng nhập</button></form>`;
+      } else {
+        form = `<form id="authForm" data-mode="login" novalidate>${field("a-email", "Email", "email", 'autocomplete="email"')}${field("a-pass", "Mật khẩu", "password", 'autocomplete="current-password"')}
+          <button type="button" class="link-btn" data-atab="forgot" style="margin:-4px 0 14px">Quên mật khẩu?</button>
+          <p class="form-msg" id="authMsg" role="alert"></p><button class="btn btn-primary btn-block" type="submit">Đăng nhập</button></form>`;
+      }
+      return head + `
+      <div class="container auth-layout">
+        <div class="panel auth-card">
+          ${accountTab === "forgot" ? "<h3>Quên mật khẩu</h3>" : tabs}
+          ${form}
+          ${accountTab === "forgot" ? "" : `<div class="or"><span>hoặc</span></div>
+          <button type="button" class="btn btn-outline btn-block" id="googleBtn"><svg viewBox="0 0 24 24" style="width:18px;height:18px"><path fill="#4285F4" stroke="none" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z"/><path fill="#34A853" stroke="none" d="M12 22c2.7 0 5-.9 6.6-2.5l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z"/><path fill="#FBBC05" stroke="none" d="M6.4 13.9a6 6 0 0 1 0-3.8V7.5H3.1a10 10 0 0 0 0 9z"/><path fill="#EA4335" stroke="none" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.8 9.4 6 12 6z"/></svg> Tiếp tục với Google</button>`}
+        </div>
+        <div class="auth-benefits">
+          <h2>Đăng nhập để mua sắm tiện hơn</h2>
+          <ul class="ticks">
+            <li>Lưu sẵn địa chỉ giao hàng, thanh toán nhanh hơn</li>
+            <li>Xem lịch sử và trạng thái đơn hàng trên mọi thiết bị</li>
+            <li>Lưu kết quả Pillow Quiz và gợi ý dành riêng cho bạn</li>
+          </ul>
+          <p class="muted" style="font-size:.84rem">Bạn vẫn có thể đặt hàng mà không cần tài khoản.</p>
+        </div>
+      </div>`;
+    }
+    const u = be.user;
+    return head + `
+    <div class="container account-layout">
+      <aside class="panel account-side">
+        <div class="avatar">${esc((u.name || u.email || "?").trim().charAt(0).toUpperCase())}</div>
+        <h3 style="margin:10px 0 2px">${esc(u.name || "Khách hàng NESTORA")}</h3>
+        <p class="muted" style="font-size:.85rem;margin:0 0 16px;word-break:break-all">${esc(u.email || "")}</p>
+        <button class="btn btn-outline btn-sm btn-block" id="signOutBtn">Đăng xuất</button>
+      </aside>
+      <div>
+        <div class="panel">
+          <h3>Thông tin &amp; địa chỉ giao hàng</h3>
+          <form class="form-grid" id="profileForm" novalidate>
+            <div class="field"><label for="p-name">Họ và tên</label><input id="p-name" name="name" autocomplete="name"></div>
+            <div class="field"><label for="p-phone">Số điện thoại</label><input id="p-phone" name="phone" type="tel" autocomplete="tel"></div>
+            <div class="field"><label for="p-prov">Tỉnh / Thành phố</label><select id="p-prov" name="province"><option value="">Chọn tỉnh / thành</option>${PROVINCES.map((p) => `<option>${p}</option>`).join("")}</select></div>
+            <div class="field"><label for="p-dist">Quận / Huyện</label><input id="p-dist" name="district"></div>
+            <div class="field full"><label for="p-addr">Địa chỉ cụ thể</label><input id="p-addr" name="address" autocomplete="street-address"></div>
+            <div class="field full"><button class="btn btn-primary" style="justify-self:start" type="submit">Lưu thông tin</button></div>
+          </form>
+        </div>
+        <div class="panel"><h3>Đơn hàng của tôi</h3><div id="myOrders"><p class="muted">Đang tải…</p></div></div>
+        <div class="panel"><h3>Kết quả Pillow Quiz</h3><div id="myQuiz"><p class="muted">Đang tải…</p></div></div>
+      </div>
+    </div>`;
+  };
+
+  const orderRow = (o) => `<a class="order-item" href="#order-${o.id}"><b>${o.id}</b><span class="muted">${new Date(o.createdAt).toLocaleDateString("vi-VN")}</span><span>${money(o.total)}</span><span class="status-pill">${STATUS[o.step || 0][0]}</span></a>`;
+  function cacheOrders(list) {
+    list.forEach((r) => {
+      const i = orders.findIndex((o) => o.id === r.id);
+      const merged = { ...r, createdAt: r.createdAtMs || (orders[i] && orders[i].createdAt) || Date.now(), synced: true };
+      delete merged.createdAtMs; delete merged.uid;
+      if (i >= 0) orders[i] = { ...orders[i], ...merged }; else orders.push(merged);
+    });
+    orders.sort((a, b) => b.createdAt - a.createdAt);
+    store.set("orders", orders);
+  }
+
+  function bindAccount() {
+    const be = BE();
+    $$("[data-atab]").forEach((b) => b.addEventListener("click", () => { accountTab = b.dataset.atab; render(true); }));
+    const form = $("#authForm");
+    if (form) {
+      const msg = $("#authMsg");
+      const say = (t, ok) => { msg.textContent = t; msg.classList.toggle("ok", !!ok); };
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const mode = form.dataset.mode;
+        const email = form["a-email"].value.trim();
+        const pass = form["a-pass"] ? form["a-pass"].value : "";
+        if (!/^\S+@\S+\.\S+$/.test(email)) return say("Vui lòng nhập email hợp lệ.");
+        if (mode === "register") {
+          if (form["a-name"].value.trim().length < 2) return say("Vui lòng nhập họ tên.");
+          if (pass.length < 6) return say("Mật khẩu cần ít nhất 6 ký tự.");
+          if (pass !== form["a-pass2"].value) return say("Hai mật khẩu chưa khớp.");
+        } else if (mode === "login" && !pass) return say("Vui lòng nhập mật khẩu.");
+        const btn = form.querySelector("[type=submit]");
+        btn.disabled = true; say("");
+        try {
+          if (mode === "register") { await be.signUp({ name: form["a-name"].value.trim(), email, password: pass }); toast("Tạo tài khoản thành công. Chào mừng bạn đến với NESTORA!"); }
+          else if (mode === "login") { await be.signIn(email, pass); toast("Đăng nhập thành công"); }
+          else { await be.resetPassword(email); say("Đã gửi link đặt lại mật khẩu. Vui lòng kiểm tra hộp thư (cả mục Spam).", true); }
+        } catch (err) { say(be.message(err)); }
+        finally { btn.disabled = false; }
+      });
+    }
+    const g = $("#googleBtn");
+    if (g) g.addEventListener("click", async () => {
+      try { await be.signInGoogle(); toast("Đăng nhập thành công"); }
+      catch (err) { const m = $("#authMsg"); if (m) m.textContent = be.message(err); }
+    });
+    const so = $("#signOutBtn");
+    if (so) so.addEventListener("click", async () => { await be.signOut(); toast("Đã đăng xuất"); });
+
+    const pf = $("#profileForm");
+    if (pf && be.user) {
+      be.getProfile().then((p) => {
+        const local = store.get("customer", {});
+        pf.name.value = p.name || be.user.name || local.name || "";
+        pf.phone.value = p.phone || local.phone || "";
+        pf.province.value = p.province || local.province || "";
+        pf.district.value = p.district || local.district || "";
+        pf.address.value = p.address || local.address || "";
+      }).catch(() => {});
+      pf.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const d = Object.fromEntries(new FormData(pf));
+        try { await be.saveProfile(d); toast("Đã lưu thông tin"); }
+        catch (err) { toast(be.message(err)); }
+      });
+      be.myOrders().then((list) => {
+        cacheOrders(list);
+        const box = $("#myOrders");
+        if (box) box.innerHTML = list.length ? `<div class="order-list">${orders.filter((o) => list.some((r) => r.id === o.id)).map(orderRow).join("")}</div>`
+          : '<p class="muted" style="margin:0">Bạn chưa có đơn hàng nào. <a class="link-btn" href="#shop">Mua sắm ngay</a></p>';
+      }).catch((err) => { const box = $("#myOrders"); if (box) box.innerHTML = `<p class="muted">${esc(be.message(err))}</p>`; });
+      be.myQuiz().then((list) => {
+        const box = $("#myQuiz");
+        if (!box) return;
+        box.innerHTML = list.length ? list.map((q) => {
+          const when = q.createdAt && q.createdAt.toDate ? q.createdAt.toDate().toLocaleDateString("vi-VN") : "";
+          const tops = (q.top || []).map((t) => { const p = byId(t.id); return p ? `<a class="chip" href="#product-${p.id}">${esc(p.name)} · ${t.pct}%</a>` : ""; }).join(" ");
+          return `<div class="quiz-row"><span class="muted">${when}</span><div class="chips" style="margin:0">${tops}</div></div>`;
+        }).join("") + '<a class="btn btn-outline btn-sm" href="#quiz" style="margin-top:12px">Làm lại Pillow Quiz</a>'
+          : '<p class="muted" style="margin:0">Bạn chưa làm Pillow Quiz. <a class="link-btn" href="#quiz">Làm ngay</a></p>';
+      }).catch(() => { const box = $("#myQuiz"); if (box) box.innerHTML = '<p class="muted">Không tải được kết quả quiz.</p>'; });
+    }
   }
 
   views.notfound = () => `<div class="container section"><div class="empty"><h3>Không tìm thấy trang</h3><p class="muted">Trang bạn tìm có thể đã được di chuyển.</p><a class="btn btn-primary" href="#home">Về trang chủ</a></div></div>`;
@@ -1303,8 +1513,8 @@
     const name = (i < 0 ? raw : raw.slice(0, i)) || "home";
     return { name, params: i < 0 ? [] : [raw.slice(i + 1)], query: new URLSearchParams() };
   }
-  const BINDERS = { shop: bindShop, product: bindProduct, cart: bindCart, checkout: bindCheckout, order: bindOrder, track: bindTrack, support: bindSupport };
-  const TITLES = { home: "Comfort is Personal", shop: "Shop", product: "Sản phẩm", story: "Our Story", quiz: "Pillow Quiz", journal: "Journal", cart: "Giỏ hàng", checkout: "Thanh toán", order: "Đơn hàng", track: "Theo dõi đơn hàng", support: "Hỗ trợ khách hàng", wishlist: "Yêu thích" };
+  const BINDERS = { account: bindAccount, shop: bindShop, product: bindProduct, cart: bindCart, checkout: bindCheckout, order: bindOrder, track: bindTrack, support: bindSupport };
+  const TITLES = { home: "Comfort is Personal", shop: "Shop", product: "Sản phẩm", story: "Our Story", quiz: "Pillow Quiz", journal: "Journal", cart: "Giỏ hàng", checkout: "Thanh toán", order: "Đơn hàng", track: "Theo dõi đơn hàng", support: "Hỗ trợ khách hàng", wishlist: "Yêu thích", account: "Tài khoản" };
 
   function render(keepScroll) {
     const r = route();
@@ -1325,4 +1535,18 @@
   updateBadges();
   renderDrawer();
   render();
+
+  if (window.Backend && Backend.available) {
+    let first = true;
+    Backend.onAuth((u) => {
+      accountTab = "login";
+      const btn = $("#accountBtn");
+      btn.classList.toggle("signed", !!u);
+      btn.setAttribute("aria-label", u ? `Tài khoản: ${u.name || u.email}` : "Đăng nhập / Đăng ký");
+      btn.title = u ? (u.name || u.email) : "Đăng nhập / Đăng ký";
+      const r = route().name;
+      if (["account", "checkout", "order", "track"].includes(r) && !(first && r === "checkout" && !u)) render(true);
+      first = false;
+    });
+  }
 })();

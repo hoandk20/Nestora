@@ -1,0 +1,47 @@
+rules_version = '2';
+
+// Quy tắc bảo mật Firestore cho NESTORA.
+// Dán toàn bộ nội dung này vào Firebase Console → Firestore Database → Rules → Publish.
+// THAY "EMAIL_QUAN_TRI@gmail.com" bằng email tài khoản quản trị của bạn
+// (đăng ký tài khoản đó trên web NESTORA hoặc đăng nhập bằng Google trước).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    // Quản trị viên: đăng nhập bằng Google (email Google luôn được xác minh) với đúng email này
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email == "EMAIL_QUAN_TRI@gmail.com"
+        && request.auth.token.email_verified == true;
+    }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    // Hồ sơ khách hàng + kết quả Pillow Quiz: chỉ chính chủ (và quản trị viên) đọc/ghi
+    match /users/{uid} {
+      allow read, write: if isOwner(uid) || isAdmin();
+      match /quiz/{quizId} {
+        allow read, create: if isOwner(uid) || isAdmin();
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // Đơn hàng: ai cũng đặt được (kể cả khách chưa đăng nhập),
+    // nhưng chỉ chủ đơn và quản trị viên mới xem; chỉ quản trị viên được sửa/xóa (cập nhật trạng thái)
+    match /orders/{orderId} {
+      allow create: if request.resource.data.id == orderId
+        && request.resource.data.total is number
+        && request.resource.data.items is list && request.resource.data.items.size() <= 50
+        && ((!signedIn() && request.resource.data.uid == null)
+            || (signedIn() && request.resource.data.uid == request.auth.uid));
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // Lời nhắn từ form liên hệ: ai cũng gửi được, chỉ quản trị viên đọc
+    match /contacts/{msgId} {
+      allow create: if request.resource.data.message is string
+        && request.resource.data.message.size() <= 2000;
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}
