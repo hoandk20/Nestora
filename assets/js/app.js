@@ -3,7 +3,7 @@
   "use strict";
 
   // Đổi số này mỗi khi cập nhật mô hình 3D để trình duyệt tải lại bản mới (tránh cache)
-  const ASSET_VERSION = "202611231619";
+  const ASSET_VERSION = "202611261114";
 
   /* ---------- Utils ---------- */
   const $ = (s, el = document) => el.querySelector(s);
@@ -282,7 +282,7 @@
 
   function articleCard(a) {
     return `<a class="article-card reveal" href="#journal-${a.slug}">
-      <div class="thumb" style="background:${a.tone}"><img src="${a.img}" alt="" loading="lazy"></div>
+      <div class="thumb${a.cover ? " cover" : ""}" style="background:${a.tone}"><img src="${a.img}" alt="" loading="lazy"></div>
       <div class="body"><span class="meta">${a.tag} · ${a.minutes} phút đọc</span><h3>${a.title}</h3><p>${a.excerpt}</p></div>
     </a>`;
   }
@@ -700,8 +700,11 @@
           <span class="meta">${a.tag} · ${a.minutes} phút đọc</span>
           <h1 style="font-size:clamp(2rem,4vw,3rem);margin-top:10px">${a.title}</h1>
           <p class="muted" style="font-size:1.1rem">${a.excerpt}</p>
-          <div class="article-hero" style="background:${a.tone}"><img src="${a.img}" alt=""></div>
-          ${a.body.map(([t, c]) => (t === "h" ? `<h2>${c}</h2>` : `<p>${c}</p>`)).join("")}
+          <div class="article-hero${a.cover ? " cover" : ""}" style="background:${a.tone}"><img src="${a.img}" alt=""></div>
+          ${a.body.map(([t, c]) => t === "h" ? `<h2>${c}</h2>`
+            : t === "ul" ? `<ul class="article-list">${c.map((li) => `<li>${li}</li>`).join("")}</ul>`
+            : t === "quote" ? `<blockquote class="pull">${c}</blockquote>`
+            : `<p>${c}</p>`).join("")}
           <div class="quiz-cta" style="margin-top:40px;grid-template-columns:1fr"><div><h3>Vẫn chưa chắc chọn gối nào?</h3><p class="muted">Pillow Quiz sẽ gợi ý giúp bạn chỉ trong 1 phút.</p><a class="btn btn-primary" href="#quiz">Làm Pillow Quiz ${ICON.arrow}</a></div></div>
         </article>
         <section class="section-sm"><h2>Bài viết khác</h2><div class="journal-grid">${others.map(articleCard).join("")}</div></section>

@@ -331,6 +331,40 @@ const POSITION_LABELS = { side: "nằm nghiêng", back: "nằm ngửa", stomach:
 /* Góc kiến thức */
 const ARTICLES = [
   {
+    slug: "kien-thuc-giac-ngu-va-lua-chon-goi", title: "Kiến thức về giấc ngủ và lựa chọn gối",
+    tag: "Giấc ngủ", minutes: 5, img: "assets/img/hero.jpg", tone: "#EFE6E6", cover: true,
+    excerpt: "Ngủ đủ giấc giúp cơ thể phục hồi năng lượng, hỗ trợ trí nhớ và cân bằng cảm xúc. Bên cạnh thói quen sinh hoạt lành mạnh, chọn đúng chiếc gối cũng rất đáng quan tâm.",
+    body: [
+      ["p", "Một giấc ngủ chất lượng đóng vai trò quan trọng đối với sức khỏe thể chất và tinh thần. Ngủ đủ giấc giúp cơ thể phục hồi năng lượng, hỗ trợ trí nhớ, cải thiện khả năng tập trung và cân bằng cảm xúc. Để có được giấc ngủ thoải mái, bên cạnh thói quen sinh hoạt lành mạnh, việc lựa chọn một chiếc gối phù hợp cũng rất đáng quan tâm."],
+      ["h", "1. Vì sao cần lựa chọn gối phù hợp?"],
+      ["p", "Gối là vật dụng nâng đỡ đầu và cổ trong suốt thời gian ngủ. Một chiếc gối phù hợp giúp duy trì tư thế nằm tự nhiên, hạn chế cảm giác khó chịu do nâng đỡ không phù hợp và mang lại sự thoải mái khi nghỉ ngơi."],
+      ["h", "2. Chọn gối theo tư thế ngủ"],
+      ["ul", [
+        "<b>Nằm nghiêng:</b> Nên chọn gối có độ cao đủ để lấp khoảng trống giữa đầu và vai, giúp cổ được nâng đỡ.",
+        "<b>Nằm ngửa:</b> Ưu tiên gối có độ cao vừa phải, hỗ trợ đầu và cổ ở tư thế tự nhiên.",
+        "<b>Nằm sấp:</b> Nên cân nhắc gối thấp, mỏng để tránh khiến cổ bị ngửa quá mức.",
+      ]],
+      ["h", "3. Những yếu tố cần cân nhắc khi chọn gối"],
+      ["ul", [
+        "<b>Kích thước:</b> Lựa chọn kích thước phù hợp với vóc dáng, thói quen ngủ và không gian sử dụng. Một số kích thước phổ biến gồm 50 × 70 cm, 50 × 75 cm và 50 × 90 cm.",
+        "<b>Chất liệu:</b> Mỗi chất liệu mang lại cảm giác khác nhau. Polyester thường nhẹ và có nhiều lựa chọn về độ mềm; Memory Foam có khả năng ôm theo hình dáng đầu và cổ; Latex có độ đàn hồi tốt.",
+        "<b>Độ cao và độ mềm:</b> Không nên chỉ chọn gối theo cảm giác mềm mại. Hãy cân nhắc khả năng nâng đỡ và sự phù hợp với tư thế ngủ.",
+        "<b>Vóc dáng và nệm:</b> Chiều rộng vai, đặc điểm cơ thể và độ lún của nệm cũng ảnh hưởng đến độ cao gối phù hợp.",
+      ]],
+      ["h", "4. Cách bảo quản và thời điểm thay gối"],
+      ["ul", [
+        "Vệ sinh vỏ gối thường xuyên và làm sạch sản phẩm theo hướng dẫn của nhà sản xuất.",
+        "Giữ gối khô ráo, thông thoáng để hạn chế ẩm mốc.",
+        "Kiểm tra tình trạng gối định kỳ.",
+        "Cân nhắc thay gối khi sản phẩm bị xẹp, biến dạng, mất độ đàn hồi hoặc không còn mang lại cảm giác nâng đỡ thoải mái.",
+      ]],
+      ["h", "Tìm chiếc gối phù hợp với bạn"],
+      ["p", "Mỗi người có một tư thế ngủ, sở thích và nhu cầu nghỉ ngơi riêng. Vì vậy, không có một chiếc gối duy nhất phù hợp với tất cả mọi người."],
+      ["p", "Hãy để NESTORA giúp bạn khám phá chiếc gối dành riêng cho mình! Tham gia bài Pillow Quiz để tìm hiểu nhu cầu, sở thích và nhận gợi ý sản phẩm phù hợp."],
+      ["quote", "NESTORA – Comfort is Personal. Thoải mái theo cách riêng của bạn."],
+    ],
+  },
+  {
     slug: "chon-chieu-cao-goi", title: "Chọn chiều cao gối phù hợp với tư thế nằm",
     tag: "Hướng dẫn chọn gối", minutes: 4, img: "assets/img/products/n04.jpg", tone: "#E7E1EA",
     excerpt: "Chiều cao gối là yếu tố ảnh hưởng nhiều nhất đến cảm giác thoải mái. Cùng tìm hiểu cách chọn theo thói quen nằm của bạn.",
